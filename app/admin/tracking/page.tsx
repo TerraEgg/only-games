@@ -61,7 +61,7 @@ export default function AdminTrackingPage() {
             onClick={() => setFilter("all")}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
               filter === "all"
-                ? "bg-violet-500/10 text-violet-400"
+                ? "bg-accent-500/10 text-accent-400"
                 : "text-zinc-500 hover:text-white"
             }`}
           >

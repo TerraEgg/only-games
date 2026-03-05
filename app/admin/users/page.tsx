@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Portal from "@/components/Portal";
 import {
   Ban,
   CheckCircle2,
@@ -88,7 +89,7 @@ export default function AdminUsersPage() {
             placeholder="Search users..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-4 text-sm text-white outline-none focus:border-violet-500/50"
+            className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-4 text-sm text-white outline-none focus:border-accent-500/50"
           />
         </div>
       </div>
@@ -118,7 +119,7 @@ export default function AdminUsersPage() {
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                         user.role === "ADMIN"
-                          ? "bg-violet-500/10 text-violet-400"
+                          ? "bg-accent-500/10 text-accent-400"
                           : "bg-zinc-800 text-zinc-400"
                       }`}
                     >
@@ -203,8 +204,9 @@ export default function AdminUsersPage() {
 
       {/* Modal overlay */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+        <Portal>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/50 my-auto">
             {modal.type === "ban" ? (
               <>
                 <h2 className="text-lg font-bold text-white mb-1">
@@ -221,7 +223,7 @@ export default function AdminUsersPage() {
                   type="text"
                   value={banReason}
                   onChange={(e) => setBanReason(e.target.value)}
-                  className="mb-4 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                  className="mb-4 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
                   placeholder="Reason for ban..."
                 />
                 <div className="flex gap-2">
@@ -255,7 +257,7 @@ export default function AdminUsersPage() {
                   type="text"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="mb-4 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                  className="mb-4 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
                   placeholder="Min 6 characters"
                   minLength={6}
                 />
@@ -272,7 +274,7 @@ export default function AdminUsersPage() {
                       actionLoading === modal.user.id ||
                       newPassword.length < 6
                     }
-                    className="flex-1 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
                   >
                     {actionLoading === modal.user.id
                       ? "Resetting..."
@@ -283,6 +285,7 @@ export default function AdminUsersPage() {
             )}
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );

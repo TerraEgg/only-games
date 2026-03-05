@@ -42,7 +42,7 @@ function LoginForm() {
     <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
       <div className="w-full max-w-sm animate-fadeIn">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-600">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-600">
             <LogIn className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome back</h1>
@@ -68,7 +68,7 @@ function LoginForm() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoFocus
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30"
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-accent-500/50 focus:ring-1 focus:ring-accent-500/30"
             />
           </div>
 
@@ -81,14 +81,14 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30"
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-accent-500/50 focus:ring-1 focus:ring-accent-500/30"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent-600 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-500 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -102,7 +102,7 @@ function LoginForm() {
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-medium text-violet-400 hover:text-violet-300"
+            className="font-medium text-accent-400 hover:text-accent-300"
           >
             Sign up
           </Link>

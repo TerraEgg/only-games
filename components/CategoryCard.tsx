@@ -45,9 +45,9 @@ export default function CategoryCard({
   return (
     <Link
       href={`/categories/${slug}`}
-      className="group flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 px-5 py-4 transition hover:border-violet-500/30 hover:bg-zinc-900"
+      className="group flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 px-5 py-4 transition hover:border-accent-500/30 hover:bg-zinc-900"
     >
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 transition group-hover:bg-violet-500/20">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 text-accent-400 transition group-hover:bg-accent-500/20">
         {iconMap[icon] ?? <Gamepad2 className="h-6 w-6" />}
       </div>
       <div className="min-w-0">

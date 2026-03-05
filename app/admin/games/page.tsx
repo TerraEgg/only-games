@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Portal from "@/components/Portal";
 import {
   Plus,
   Trash2,
@@ -140,12 +141,12 @@ export default function AdminGamesPage() {
               placeholder="Search games..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-4 text-sm text-white outline-none focus:border-violet-500/50"
+              className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-4 text-sm text-white outline-none focus:border-accent-500/50"
             />
           </div>
           <button
             onClick={openNew}
-            className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
+            className="flex items-center gap-1.5 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-500"
           >
             <Plus className="h-4 w-4" />
             Add Game
@@ -233,8 +234,9 @@ export default function AdminGamesPage() {
 
       {/* Add / Edit modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+        <Portal>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/50 my-auto">
             <h2 className="mb-4 text-lg font-bold text-white">
               {editGame ? "Edit Game" : "Add Game"}
             </h2>
@@ -244,14 +246,14 @@ export default function AdminGamesPage() {
                 placeholder="Title"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
               <input
                 type="url"
                 placeholder="Game URL / Embed URL"
                 value={form.url}
                 onChange={(e) => setForm({ ...form, url: e.target.value })}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
               <input
                 type="url"
@@ -260,7 +262,7 @@ export default function AdminGamesPage() {
                 onChange={(e) =>
                   setForm({ ...form, thumbnail: e.target.value })
                 }
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
               <textarea
                 placeholder="Description (optional)"
@@ -269,14 +271,14 @@ export default function AdminGamesPage() {
                   setForm({ ...form, description: e.target.value })
                 }
                 rows={2}
-                className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
               <select
                 value={form.categoryId}
                 onChange={(e) =>
                   setForm({ ...form, categoryId: e.target.value })
                 }
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               >
                 <option value="">Select category</option>
                 {categories.map((c) => (
@@ -307,13 +309,14 @@ export default function AdminGamesPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.title || !form.url || !form.categoryId}
-                className="flex-1 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
               >
                 {saving ? "Saving..." : editGame ? "Update" : "Add Game"}
               </button>
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );

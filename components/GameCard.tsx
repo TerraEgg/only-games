@@ -20,7 +20,7 @@ export default function GameCard({
   return (
     <Link
       href={`/games/${slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/50 transition hover:border-violet-500/30 hover:bg-zinc-900"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/50 transition hover:border-accent-500/30 hover:bg-zinc-900"
     >
       <div className="relative aspect-video w-full overflow-hidden bg-zinc-800">
         {thumbnail ? (
@@ -42,7 +42,7 @@ export default function GameCard({
           {title}
         </h3>
         <div className="flex items-center justify-between">
-          <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-400">
+          <span className="rounded-full bg-accent-500/10 px-2 py-0.5 text-xs font-medium text-accent-400">
             {categoryName}
           </span>
           <span className="text-xs text-zinc-500">

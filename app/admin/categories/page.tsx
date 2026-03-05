@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Portal from "@/components/Portal";
 import { Plus, Trash2, Loader2, Pencil } from "lucide-react";
 
 interface Category {
@@ -100,7 +101,7 @@ export default function AdminCategoriesPage() {
         <h1 className="text-2xl font-bold text-white">Categories</h1>
         <button
           onClick={openNew}
-          className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
+          className="flex items-center gap-1.5 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-500"
         >
           <Plus className="h-4 w-4" />
           Add Category
@@ -150,8 +151,9 @@ export default function AdminCategoriesPage() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+        <Portal>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/50 my-auto">
             <h2 className="mb-4 text-lg font-bold text-white">
               {editCat ? "Edit Category" : "Add Category"}
             </h2>
@@ -161,7 +163,7 @@ export default function AdminCategoriesPage() {
                 placeholder="Category name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
               <input
                 type="text"
@@ -170,12 +172,12 @@ export default function AdminCategoriesPage() {
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
                 }
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
               <select
                 value={form.icon}
                 onChange={(e) => setForm({ ...form, icon: e.target.value })}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               >
                 {ICONS.map((i) => (
                   <option key={i} value={i}>
@@ -190,7 +192,7 @@ export default function AdminCategoriesPage() {
                 onChange={(e) =>
                   setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })
                 }
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-violet-500/50"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
               />
             </div>
             <div className="mt-5 flex gap-2">
@@ -203,13 +205,14 @@ export default function AdminCategoriesPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name}
-                className="flex-1 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
               >
                 {saving ? "Saving..." : editCat ? "Update" : "Create"}
               </button>
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );

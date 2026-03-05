@@ -11,6 +11,15 @@ const config: Config = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      colors: {
+        accent: {
+          DEFAULT: "#00ABED",
+          300: "#5CC8F2",
+          400: "#2BB8EF",
+          500: "#00ABED",
+          600: "#0091CC",
+        },
+      },
     },
   },
   plugins: [],

@@ -34,7 +34,7 @@ export default async function AdminDashboard() {
       label: "Total Games",
       value: gameCount,
       icon: Gamepad2,
-      color: "text-violet-400 bg-violet-500/10",
+      color: "text-accent-400 bg-accent-500/10",
     },
     {
       label: "Categories",

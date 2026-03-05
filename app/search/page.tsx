@@ -59,7 +59,7 @@ export default async function SearchPage({ searchParams }: Props) {
             href={`/search${q ? `?q=${encodeURIComponent(q)}` : ""}`}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               !categorySlug
-                ? "border-violet-500/40 bg-violet-500/10 text-violet-400"
+                ? "border-accent-500/40 bg-accent-500/10 text-accent-400"
                 : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white"
             }`}
           >
@@ -71,7 +71,7 @@ export default async function SearchPage({ searchParams }: Props) {
               href={`/search?${q ? `q=${encodeURIComponent(q)}&` : ""}category=${cat.slug}`}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                 categorySlug === cat.slug
-                  ? "border-violet-500/40 bg-violet-500/10 text-violet-400"
+                  ? "border-accent-500/40 bg-accent-500/10 text-accent-400"
                   : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white"
               }`}
             >
@@ -124,7 +124,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 href={`/search?${params.toString()}`}
                 className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
                   p === page
-                    ? "bg-violet-600 text-white"
+                    ? "bg-accent-600 text-white"
                     : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
                 }`}
               >

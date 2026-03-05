@@ -33,10 +33,10 @@ export default async function HomePage() {
     <div className="animate-fadeIn">
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-zinc-800/40">
-        <div className="absolute inset-0 bg-gradient-to-b from-violet-600/5 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-accent-600/5 via-transparent to-transparent" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6">
           <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-4 py-1.5 text-sm text-zinc-400">
-            <Gamepad2 className="h-4 w-4 text-violet-400" />
+            <Gamepad2 className="h-4 w-4 text-accent-400" />
             {totalGames > 0
               ? `${totalGames.toLocaleString()} games and counting`
               : "Your gaming destination"}
@@ -77,7 +77,7 @@ export default async function HomePage() {
         {popularGames.length > 0 && (
           <section>
             <div className="mb-6 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-violet-400" />
+              <TrendingUp className="h-5 w-5 text-accent-400" />
               <h2 className="text-xl font-bold text-white">Popular Games</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -99,7 +99,7 @@ export default async function HomePage() {
         {recentGames.length > 0 && (
           <section>
             <div className="mb-6 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-violet-400" />
+              <Sparkles className="h-5 w-5 text-accent-400" />
               <h2 className="text-xl font-bold text-white">Recently Added</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">

@@ -23,7 +23,7 @@ export default function SearchBar({ defaultValue = "" }: { defaultValue?: string
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search for games..."
-        className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 py-3 pl-11 pr-5 text-base text-white placeholder-zinc-500 outline-none transition focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20"
+        className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 py-3 pl-11 pr-5 text-base text-white placeholder-zinc-500 outline-none transition focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20"
       />
     </form>
   );

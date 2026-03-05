@@ -91,7 +91,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               href={`/categories/${params.slug}?page=${p}`}
               className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
                 p === page
-                  ? "bg-violet-600 text-white"
+                  ? "bg-accent-600 text-white"
                   : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
               }`}
             >

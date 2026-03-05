@@ -58,7 +58,7 @@ export default async function GamePage({ params }: Props) {
         <h1 className="text-2xl font-bold text-white sm:text-3xl">
           {game.title}
         </h1>
-        <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-400">
+        <span className="rounded-full bg-accent-500/10 px-3 py-1 text-xs font-medium text-accent-400">
           {game.category.name}
         </span>
       </div>
@@ -97,10 +97,10 @@ export default async function GamePage({ params }: Props) {
               <Link
                 key={r.id}
                 href={`/games/${r.slug}`}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/50 transition hover:border-violet-500/30"
+                className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/50 transition hover:border-accent-500/30"
               >
                 <div className="flex aspect-video items-center justify-center bg-zinc-800">
-                  <Play className="h-8 w-8 text-zinc-600 transition group-hover:text-violet-400" />
+                  <Play className="h-8 w-8 text-zinc-600 transition group-hover:text-accent-400" />
                 </div>
                 <div className="p-3">
                   <h3 className="line-clamp-1 text-sm font-semibold text-white">
