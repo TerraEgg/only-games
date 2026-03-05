@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-zinc-950 text-zinc-50 antialiased;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-zinc-700;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-600;
+}
+
+/* Game iframe container */
+.game-frame {
+  @apply aspect-video w-full overflow-hidden rounded-2xl border border-zinc-800/60 bg-black;
+}
+.game-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out both;
+}

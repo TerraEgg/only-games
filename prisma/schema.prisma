@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String     @map("password_hash")
+  role         Role       @default(USER)
+  isBanned     Boolean    @default(false) @map("is_banned")
+  banReason    String?    @map("ban_reason")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  lastLogin    DateTime?  @map("last_login")
+  activities   Activity[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String   @default("Gamepad2")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  games       Game[]
+
+  @@map("categories")
+}
+
+model Game {
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  description String?
+  url         String
+  thumbnail   String?
+  categoryId  String     @map("category_id")
+  isActive    Boolean    @default(true) @map("is_active")
+  isFeatured  Boolean    @default(false) @map("is_featured")
+  playCount   Int        @default(0) @map("play_count")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  category    Category   @relation(fields: [categoryId], references: [id])
+  activities  Activity[]
+
+  @@index([categoryId])
+  @@index([title])
+  @@map("games")
+}
+
+model Activity {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  gameId      String    @map("game_id")
+  ipAddress   String?   @map("ip_address")
+  deviceInfo  String?   @map("device_info")
+  userAgent   String?   @map("user_agent")
+  geolocation String?
+  country     String?
+  city        String?
+  startedAt   DateTime  @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game        Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([gameId])
+  @@index([startedAt])
+  @@map("activities")
+}
