@@ -9,8 +9,10 @@ import {
   Loader2,
   Search,
   Shield,
+  MessageSquare,
+  ExternalLink,
 } from "lucide-react";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatPlayTime } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -18,6 +20,7 @@ interface User {
   role: string;
   isBanned: boolean;
   banReason: string | null;
+  totalPlayTime: number;
   createdAt: string;
   lastLogin: string | null;
 }
@@ -30,11 +33,14 @@ export default function AdminUsersPage() {
 
   // Modal state
   const [modal, setModal] = useState<{
-    type: "ban" | "resetPassword";
+    type: "ban" | "resetPassword" | "message" | "redirect";
     user: User;
   } | null>(null);
   const [banReason, setBanReason] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [msgTitle, setMsgTitle] = useState("Staff Message");
+  const [msgBody, setMsgBody] = useState("");
+  const [redirectUrl, setRedirectUrl] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -74,6 +80,40 @@ export default function AdminUsersPage() {
     setActionLoading(null);
   }
 
+  async function handleSendMessage(userId: string) {
+    if (!msgBody.trim()) return;
+    setActionLoading(userId);
+    await fetch(`/api/admin/users/${userId}/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: msgTitle.trim() || "Staff Message",
+        message: msgBody.trim(),
+      }),
+    });
+    setMsgTitle("Staff Message");
+    setMsgBody("");
+    setModal(null);
+    setActionLoading(null);
+  }
+
+  async function handleRedirect(userId: string) {
+    if (!redirectUrl.trim()) return;
+    setActionLoading(userId);
+    await fetch(`/api/admin/users/${userId}/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Redirect",
+        message: `You are being redirected to ${redirectUrl.trim()}`,
+        redirectUrl: redirectUrl.trim(),
+      }),
+    });
+    setRedirectUrl("");
+    setModal(null);
+    setActionLoading(null);
+  }
+
   const filtered = users.filter((u) =>
     u.username.toLowerCase().includes(search.toLowerCase())
   );
@@ -107,8 +147,11 @@ export default function AdminUsersPage() {
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">Created</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">Last Login</th>
+                <th className="px-4 py-3 font-medium hidden lg:table-cell">Play Time</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+                <th className="px-4 py-3 font-medium text-right">Restrict</th>
+                <th className="px-4 py-3 font-medium text-right">Message</th>
+                <th className="px-4 py-3 font-medium text-right">Redirect</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/40">
@@ -135,6 +178,9 @@ export default function AdminUsersPage() {
                   <td className="px-4 py-3 hidden md:table-cell text-zinc-500">
                     {user.lastLogin ? formatDateTime(user.lastLogin) : "Never"}
                   </td>
+                  <td className="px-4 py-3 hidden lg:table-cell text-zinc-500">
+                    {formatPlayTime(user.totalPlayTime)}
+                  </td>
                   <td className="px-4 py-3">
                     {user.isBanned ? (
                       <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-400">
@@ -146,6 +192,7 @@ export default function AdminUsersPage() {
                       </span>
                     )}
                   </td>
+                  {/* Restrict actions */}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
@@ -185,12 +232,41 @@ export default function AdminUsersPage() {
                       )}
                     </div>
                   </td>
+                  {/* Message action */}
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => {
+                        setModal({ type: "message", user });
+                        setMsgTitle("Staff Message");
+                        setMsgBody("");
+                      }}
+                      disabled={actionLoading === user.id}
+                      className="rounded-lg p-1.5 text-accent-500 transition hover:bg-accent-500/10"
+                      title="Send Message"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </button>
+                  </td>
+                  {/* Redirect action */}
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => {
+                        setModal({ type: "redirect", user });
+                        setRedirectUrl("");
+                      }}
+                      disabled={actionLoading === user.id}
+                      className="rounded-lg p-1.5 text-orange-500 transition hover:bg-orange-500/10"
+                      title="Redirect User"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-zinc-600"
                   >
                     No users found
@@ -242,7 +318,7 @@ export default function AdminUsersPage() {
                   </button>
                 </div>
               </>
-            ) : (
+            ) : modal.type === "resetPassword" ? (
               <>
                 <h2 className="text-lg font-bold text-white mb-1">
                   Reset Password
@@ -279,6 +355,95 @@ export default function AdminUsersPage() {
                     {actionLoading === modal.user.id
                       ? "Resetting..."
                       : "Reset Password"}
+                  </button>
+                </div>
+              </>
+            ) : modal.type === "message" ? (
+              <>
+                <h2 className="text-lg font-bold text-white mb-1">
+                  Send Message to {modal.user.username}
+                </h2>
+                <p className="text-sm text-zinc-500 mb-4">
+                  Send a direct notification to this user.
+                </p>
+                <label className="mb-1 block text-sm text-zinc-400">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={msgTitle}
+                  onChange={(e) => setMsgTitle(e.target.value)}
+                  className="mb-3 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
+                  placeholder="Staff Message"
+                />
+                <label className="mb-1 block text-sm text-zinc-400">
+                  Message
+                </label>
+                <textarea
+                  value={msgBody}
+                  onChange={(e) => setMsgBody(e.target.value)}
+                  rows={3}
+                  className="mb-3 w-full resize-none rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
+                  placeholder="Type your message..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setModal(null)}
+                    className="flex-1 rounded-xl border border-zinc-800 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage(modal.user.id)}
+                    disabled={
+                      actionLoading === modal.user.id ||
+                      !msgBody.trim()
+                    }
+                    className="flex-1 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
+                  >
+                    {actionLoading === modal.user.id
+                      ? "Sending..."
+                      : "Send Message"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-white mb-1">
+                  Redirect {modal.user.username}
+                </h2>
+                <p className="text-sm text-zinc-500 mb-4">
+                  Force-redirect this user to a specific page. They will be
+                  navigated automatically.
+                </p>
+                <label className="mb-1 block text-sm text-zinc-400">
+                  Redirect URL
+                </label>
+                <input
+                  type="text"
+                  value={redirectUrl}
+                  onChange={(e) => setRedirectUrl(e.target.value)}
+                  className="mb-4 w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-white outline-none focus:border-accent-500/50"
+                  placeholder="/some-page or https://..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setModal(null)}
+                    className="flex-1 rounded-xl border border-zinc-800 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleRedirect(modal.user.id)}
+                    disabled={
+                      actionLoading === modal.user.id ||
+                      !redirectUrl.trim()
+                    }
+                    className="flex-1 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50"
+                  >
+                    {actionLoading === modal.user.id
+                      ? "Redirecting..."
+                      : "Redirect User"}
                   </button>
                 </div>
               </>

@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 import { Search, Menu, X, User, LogOut, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function Header() {
   const { data: session } = useSession();
@@ -66,6 +67,7 @@ export default function Header() {
                   Admin
                 </Link>
               )}
+              <NotificationBell />
               <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
                 <User className="h-4 w-4 text-accent-400" />
                 <span className="text-sm font-medium text-zinc-300">

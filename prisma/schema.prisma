@@ -14,17 +14,35 @@ enum Role {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  username     String     @unique
-  passwordHash String     @map("password_hash")
-  role         Role       @default(USER)
-  isBanned     Boolean    @default(false) @map("is_banned")
-  banReason    String?    @map("ban_reason")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  lastLogin    DateTime?  @map("last_login")
-  activities   Activity[]
+  id            String         @id @default(cuid())
+  username      String         @unique
+  passwordHash  String         @map("password_hash")
+  role          Role           @default(USER)
+  isBanned      Boolean        @default(false) @map("is_banned")
+  banReason     String?        @map("ban_reason")
+  totalPlayTime Int            @default(0) @map("total_play_time") // seconds
+  createdAt     DateTime       @default(now()) @map("created_at")
+  lastLogin     DateTime?      @map("last_login")
+  activities    Activity[]
+  notifications Notification[]
 
   @@map("users")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  fromAdminId String?  @map("from_admin_id")
+  title       String   @default("Staff Message")
+  message     String
+  redirectUrl String?  @map("redirect_url")
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
 }
 
 model Category {

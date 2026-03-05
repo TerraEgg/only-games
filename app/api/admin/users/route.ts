@@ -17,6 +17,7 @@ export async function GET() {
       role: true,
       isBanned: true,
       banReason: true,
+      totalPlayTime: true,
       createdAt: true,
       lastLogin: true,
     },

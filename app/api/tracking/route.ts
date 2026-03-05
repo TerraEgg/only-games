@@ -14,10 +14,24 @@ export async function POST(req: Request) {
     try {
       const body = await req.json();
       if (body.activityId) {
-        await prisma.activity.update({
+        const activity = await prisma.activity.update({
           where: { id: body.activityId },
           data: { endedAt: new Date() },
         });
+
+        // Calculate session duration and add to user's totalPlayTime
+        if (activity.startedAt) {
+          const durationSeconds = Math.floor(
+            (new Date().getTime() - new Date(activity.startedAt).getTime()) / 1000
+          );
+          if (durationSeconds > 0 && durationSeconds < 86400) {
+            // Sanity: max 24h per session
+            await prisma.user.update({
+              where: { id: activity.userId },
+              data: { totalPlayTime: { increment: durationSeconds } },
+            });
+          }
+        }
       }
     } catch {}
     return NextResponse.json({ ok: true });
@@ -73,6 +87,34 @@ export async function POST(req: Request) {
       city,
     },
   });
+
+  // ── Enforce 100-entry limit per user ──────────────────────────────
+  // Keep only the most recent 100 activities for this user
+  const count = await prisma.activity.count({
+    where: { userId: session.user.id },
+  });
+
+  if (count > 100) {
+    // Find the 100th newest entry's startedAt to delete everything older
+    const oldest = await prisma.activity.findMany({
+      where: { userId: session.user.id },
+      orderBy: { startedAt: "desc" },
+      skip: 100,
+      take: 1,
+      select: { startedAt: true },
+    });
+
+    if (oldest.length > 0) {
+      await prisma.activity.deleteMany({
+        where: {
+          userId: session.user.id,
+          startedAt: { lte: oldest[0].startedAt },
+          // Don't delete the activity we just created
+          id: { not: activity.id },
+        },
+      });
+    }
+  }
 
   return NextResponse.json({ id: activity.id }, { status: 201 });
 }
