@@ -16,21 +16,38 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Single getToken call — reuse for all checks
+  let token: Awaited<ReturnType<typeof getToken>> = null;
+  try {
+    token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+  } catch {
+    // If token decoding fails, continue without it
+  }
+
   // ── Ban cookie check ──────────────────────────────────────────────
-  // This persists even after logout so the user can't bypass a ban
   const banCookie = request.cookies.get("__og_banned");
   if (banCookie?.value === "1") {
+    // If the user has a valid token and isBanned is false, they were unbanned
+    if (token && !token.isBanned) {
+      const response = NextResponse.next();
+      response.cookies.set("__og_banned", "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 0,
+        path: "/",
+      });
+      return response;
+    }
+    // Still banned or no token
     return NextResponse.redirect(new URL("/banned", request.url));
   }
 
   // ── Session-based ban check ───────────────────────────────────────
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-
   if (token?.isBanned) {
-    // Set persistent ban cookie (10 years)
     const response = NextResponse.redirect(new URL("/banned", request.url));
     response.cookies.set("__og_banned", "1", {
       httpOnly: true,

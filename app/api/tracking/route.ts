@@ -4,31 +4,66 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 
-// POST — start tracking OR end tracking (if ?end=1)
+const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes — session is stale if no heartbeat
+
+// POST — start tracking, heartbeat, or end tracking
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const isEnd = url.searchParams.get("end") === "1";
+  const isHeartbeat = url.searchParams.get("heartbeat") === "1";
 
-  if (isEnd) {
-    // End tracking — works with sendBeacon too
+  // ── Heartbeat — update endedAt to keep session alive ──────────────
+  if (isHeartbeat) {
     try {
       const body = await req.json();
       if (body.activityId) {
-        const activity = await prisma.activity.update({
+        await prisma.activity.update({
           where: { id: body.activityId },
           data: { endedAt: new Date() },
         });
+      }
+    } catch {}
+    return NextResponse.json({ ok: true });
+  }
 
-        // Calculate session duration and add to user's totalPlayTime
-        if (activity.startedAt) {
+  // ── End tracking ──────────────────────────────────────────────────
+  if (isEnd) {
+    try {
+      const body = await req.json();
+      if (body.activityId) {
+        // Only set endedAt and calculate time if not already finalized
+        const activity = await prisma.activity.findUnique({
+          where: { id: body.activityId },
+          select: { startedAt: true, endedAt: true, userId: true },
+        });
+
+        if (activity) {
+          const now = new Date();
+          await prisma.activity.update({
+            where: { id: body.activityId },
+            data: { endedAt: now },
+          });
+
+          // Calculate actual play duration
           const durationSeconds = Math.floor(
-            (new Date().getTime() - new Date(activity.startedAt).getTime()) / 1000
+            (now.getTime() - new Date(activity.startedAt).getTime()) / 1000
           );
-          if (durationSeconds > 0 && durationSeconds < 86400) {
-            // Sanity: max 24h per session
+
+          // Subtract any time already credited by previous heartbeat-based endedAt
+          const alreadyCredited = activity.endedAt
+            ? Math.floor(
+                (new Date(activity.endedAt).getTime() -
+                  new Date(activity.startedAt).getTime()) /
+                  1000
+              )
+            : 0;
+
+          const newTime = durationSeconds - alreadyCredited;
+
+          if (newTime > 0 && durationSeconds < 86400) {
             await prisma.user.update({
               where: { id: activity.userId },
-              data: { totalPlayTime: { increment: durationSeconds } },
+              data: { totalPlayTime: { increment: newTime } },
             });
           }
         }
@@ -37,7 +72,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Start tracking
+  // ── Start tracking ────────────────────────────────────────────────
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -49,7 +84,48 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "gameId required" }, { status: 400 });
   }
 
-  // Get IP from headers
+  // ── Close any stale/orphaned sessions for this user ───────────────
+  // Sessions that never got an end signal (browser crash, etc.)
+  const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_MS);
+  const staleSessions = await prisma.activity.findMany({
+    where: {
+      userId: session.user.id,
+      OR: [
+        { endedAt: null }, // never got any heartbeat or end
+        {
+          endedAt: { lt: staleThreshold }, // last heartbeat > 2 min ago
+          // Only consider truly stale — recent heartbeats mean active
+        },
+      ],
+      // Only look at sessions that started recently-ish (last 24h)
+      startedAt: { gt: new Date(Date.now() - 86400000) },
+    },
+  });
+
+  // Close stale sessions and credit their play time
+  for (const stale of staleSessions) {
+    const endTime = stale.endedAt || stale.startedAt; // if no heartbeat ever, 0 duration
+    const durationSeconds = Math.floor(
+      (new Date(endTime).getTime() - new Date(stale.startedAt).getTime()) / 1000
+    );
+
+    if (durationSeconds > 0 && durationSeconds < 86400) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { totalPlayTime: { increment: durationSeconds } },
+      });
+    }
+
+    // Mark as closed — set endedAt if null
+    if (!stale.endedAt) {
+      await prisma.activity.update({
+        where: { id: stale.id },
+        data: { endedAt: endTime },
+      });
+    }
+  }
+
+  // ── Get IP & geo ──────────────────────────────────────────────────
   const headersList = headers();
   const ip =
     headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -58,15 +134,15 @@ export async function POST(req: Request) {
 
   const userAgent = headersList.get("user-agent") || null;
 
-  // Try to get geo info from IP (best effort, using free ip-api)
   let country: string | null = null;
   let city: string | null = null;
 
   try {
     if (ip && ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
-      const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=country,city`, {
-        signal: AbortSignal.timeout(2000),
-      });
+      const geoRes = await fetch(
+        `http://ip-api.com/json/${ip}?fields=country,city`,
+        { signal: AbortSignal.timeout(2000) }
+      );
       if (geoRes.ok) {
         const geoData = await geoRes.json();
         country = geoData.country || null;
@@ -89,13 +165,11 @@ export async function POST(req: Request) {
   });
 
   // ── Enforce 100-entry limit per user ──────────────────────────────
-  // Keep only the most recent 100 activities for this user
   const count = await prisma.activity.count({
     where: { userId: session.user.id },
   });
 
   if (count > 100) {
-    // Find the 100th newest entry's startedAt to delete everything older
     const oldest = await prisma.activity.findMany({
       where: { userId: session.user.id },
       orderBy: { startedAt: "desc" },
@@ -109,7 +183,6 @@ export async function POST(req: Request) {
         where: {
           userId: session.user.id,
           startedAt: { lte: oldest[0].startedAt },
-          // Don't delete the activity we just created
           id: { not: activity.id },
         },
       });
@@ -130,7 +203,10 @@ export async function GET(req: Request) {
   const live = url.searchParams.get("live") === "1";
   const limit = parseInt(url.searchParams.get("limit") || "100");
 
-  const where = live ? { endedAt: null } : {};
+  // "Live" = endedAt updated within last 60s (heartbeat-based)
+  const where = live
+    ? { endedAt: { gt: new Date(Date.now() - 60_000) } }
+    : {};
 
   const activities = await prisma.activity.findMany({
     where,
