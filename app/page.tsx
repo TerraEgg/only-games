@@ -4,7 +4,7 @@ import GameCard from "@/components/GameCard";
 import SearchBar from "@/components/SearchBar";
 import { Gamepad2, TrendingUp, Sparkles } from "lucide-react";
 
-export const revalidate = 60; // ISR — revalidate every 60 s
+export const revalidate = 30; // ISR — revalidate every 30 s
 
 export default async function HomePage() {
   const [categories, popularGames, recentGames, totalGames] = await Promise.all(

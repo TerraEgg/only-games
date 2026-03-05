@@ -9,6 +9,20 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "prisma"],
   },
+  // Block location & other permission prompts site-wide (including iframes)
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value: "geolocation=(), camera=(), microphone=()",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

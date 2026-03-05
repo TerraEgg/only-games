@@ -4,7 +4,7 @@ import GameCard from "@/components/GameCard";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
-export const revalidate = 60;
+export const revalidate = 30;
 
 interface Props {
   params: { slug: string };

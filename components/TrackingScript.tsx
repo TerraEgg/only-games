@@ -43,17 +43,6 @@ export default function TrackingScript({ gameId }: { gameId: string }) {
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    let geo: string | null = null;
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          geo = `${pos.coords.latitude},${pos.coords.longitude}`;
-        },
-        () => {}
-      );
-    }
-
     // Reset state for this mount
     endedRef.current = false;
     activityIdRef.current = null;
@@ -66,7 +55,6 @@ export default function TrackingScript({ gameId }: { gameId: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             gameId,
-            geolocation: geo,
             deviceInfo: getDeviceInfo(),
           }),
         });

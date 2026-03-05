@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Play, Eye } from "lucide-react";
 import TrackingScript from "@/components/TrackingScript";
+import GameEmbed from "@/components/GameEmbed";
 
-export const revalidate = 60;
+export const revalidate = 30;
 
 interface Props {
   params: { slug: string };
@@ -63,15 +64,8 @@ export default async function GamePage({ params }: Props) {
         </span>
       </div>
 
-      {/* Game iframe */}
-      <div className="game-frame">
-        <iframe
-          src={game.url}
-          title={game.title}
-          allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-popups"
-        />
-      </div>
+      {/* Game embed with fullscreen & volume controls */}
+      <GameEmbed url={game.url} title={game.title} />
 
       <div className="mt-6 flex items-center gap-6 text-sm text-zinc-500">
         <span className="flex items-center gap-1.5">
