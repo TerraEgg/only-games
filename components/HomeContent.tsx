@@ -16,13 +16,18 @@ export default function HomeContent() {
   const popularGames = useMemo(
     () =>
       [...(data?.games ?? [])]
+        .filter((g) => !!g.thumbnail)
         .sort((a, b) => b.playCount - a.playCount)
         .slice(0, 8),
     [data?.games]
   );
 
   const recentGames = useMemo(
-    () => (data?.games ?? []).slice(0, 8), // already sorted by createdAt desc
+    () =>
+      [...(data?.games ?? [])]
+        .filter((g) => !!g.thumbnail)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 8),
     [data?.games]
   );
 

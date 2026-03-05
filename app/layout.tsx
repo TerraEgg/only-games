@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import BanChecker from "@/components/BanChecker";
 import DataProvider from "@/components/DataProvider";
 import CacheToast from "@/components/CacheToast";
+import CookieSync from "@/components/CookieSync";
 
 export const metadata: Metadata = {
   title: "OnlyGames — Play Free Games Online",
@@ -24,6 +25,7 @@ export default function RootLayout({
         <Providers>
           <DataProvider>
             <BanChecker />
+            <CookieSync />
             <Header />
             <main className="flex-1">{children}</main>
             <Footer />

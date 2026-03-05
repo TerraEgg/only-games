@@ -8,6 +8,8 @@ import {
   Gamepad2,
   FolderOpen,
   Activity,
+  ImageOff,
+  Cookie,
   ArrowLeft,
 } from "lucide-react";
 
@@ -16,6 +18,8 @@ const links = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/games", label: "Games", icon: Gamepad2 },
   { href: "/admin/categories", label: "Categories", icon: FolderOpen },
+  { href: "/admin/thumbnails", label: "Thumbnails", icon: ImageOff },
+  { href: "/admin/cookies", label: "Cookie Sync", icon: Cookie },
   { href: "/admin/tracking", label: "Tracking", icon: Activity },
 ];
 

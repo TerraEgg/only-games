@@ -10,6 +10,9 @@ import {
   Pencil,
   ToggleLeft,
   ToggleRight,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 interface Category {
@@ -39,6 +42,16 @@ export default function AdminGamesPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editGame, setEditGame] = useState<Game | null>(null);
+
+  // Import
+  const [showImport, setShowImport] = useState(false);
+  const [importJson, setImportJson] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    skipped: number;
+    errors: string[];
+  } | null>(null);
 
   // Form
   const [form, setForm] = useState({
@@ -125,6 +138,38 @@ export default function AdminGamesPage() {
     await fetchData();
   }
 
+  async function handleImport() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(importJson);
+    } catch {
+      setImportResult({ imported: 0, skipped: 0, errors: ["Invalid JSON — make sure it's a valid JSON array"] });
+      return;
+    }
+    if (!Array.isArray(parsed)) {
+      setImportResult({ imported: 0, skipped: 0, errors: ["Must be a JSON array (wrap in [ ])"] });
+      return;
+    }
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/games/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: importJson,
+      });
+      const data = await res.json();
+      setImportResult(data);
+      if (data.imported > 0) {
+        await fetchData();
+      }
+    } catch (err) {
+      setImportResult({ imported: 0, skipped: 0, errors: ["Network error"] });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const filtered = games.filter((g) =>
     g.title.toLowerCase().includes(search.toLowerCase())
   );
@@ -144,6 +189,17 @@ export default function AdminGamesPage() {
               className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-4 text-sm text-white outline-none focus:border-accent-500/50"
             />
           </div>
+          <button
+            onClick={() => {
+              setShowImport(true);
+              setImportResult(null);
+              setImportJson("");
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
           <button
             onClick={openNew}
             className="flex items-center gap-1.5 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-500"
@@ -316,6 +372,79 @@ export default function AdminGamesPage() {
             </div>
           </div>
         </div>
+        </Portal>
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/50 my-auto">
+              <h2 className="mb-1 text-lg font-bold text-white">Bulk Import Games</h2>
+              <p className="mb-4 text-xs text-zinc-500">
+                Paste a JSON array. Each item needs: <code className="text-accent-400">name</code>, <code className="text-accent-400">dispName</code>, <code className="text-accent-400">url</code>, and optionally <code className="text-accent-400">thumbnail</code>. Uses dispName as title. Auto-creates &quot;Uncategorized&quot; category.
+              </p>
+              <textarea
+                value={importJson}
+                onChange={(e) => setImportJson(e.target.value)}
+                placeholder={`[\n  {\n    "name": "my-game",\n    "dispName": "My Game",\n    "url": "https://example.com/game/index.html",\n    "thumbnail": "https://example.com/thumb.png"\n  }\n]`}
+                rows={12}
+                className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 font-mono text-xs text-white outline-none focus:border-accent-500/50"
+              />
+
+              {/* Result feedback */}
+              {importResult && (
+                <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-sm">
+                  <div className="flex items-center gap-4">
+                    {importResult.imported > 0 && (
+                      <span className="flex items-center gap-1 text-emerald-400">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {importResult.imported} imported
+                      </span>
+                    )}
+                    {importResult.skipped > 0 && (
+                      <span className="text-amber-400">
+                        {importResult.skipped} skipped (duplicates)
+                      </span>
+                    )}
+                  </div>
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {importResult.errors.map((e, i) => (
+                        <p key={i} className="flex items-start gap-1.5 text-xs text-red-400">
+                          <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                          {e}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-5 flex gap-2">
+                <button
+                  onClick={() => setShowImport(false)}
+                  className="flex-1 rounded-xl border border-zinc-800 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-900"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={importing || !importJson.trim()}
+                  className="flex-1 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
+                >
+                  {importing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Importing...
+                    </span>
+                  ) : (
+                    `Import Games`
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </Portal>
       )}
     </div>

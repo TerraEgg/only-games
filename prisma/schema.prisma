@@ -25,6 +25,7 @@ model User {
   lastLogin     DateTime?      @map("last_login")
   activities    Activity[]
   notifications Notification[]
+  savedCookies  SavedCookie[]
 
   @@map("users")
 }
@@ -97,4 +98,19 @@ model Activity {
   @@index([gameId])
   @@index([startedAt])
   @@map("activities")
+}
+
+model SavedCookie {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  key       String                         // cookie/localStorage key
+  value     String   @db.Text              // cookie value (can be large)
+  domain    String   @default("")          // origin domain of the game
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key, domain])
+  @@index([userId])
+  @@map("saved_cookies")
 }

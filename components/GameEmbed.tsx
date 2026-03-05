@@ -15,6 +15,14 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // ── Fire game-open on mount, game-close on unmount ────────────
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("game-open", { detail: { url, title } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("game-close", { detail: { url, title } }));
+    };
+  }, [url, title]);
+
   // ── Fullscreen toggle ──────────────────────────────────────────
   const toggleFullscreen = useCallback(async () => {
     const el = containerRef.current;
@@ -86,7 +94,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
       ref={containerRef}
       className={`game-container group relative ${
         isFullscreen && !document.fullscreenElement
-          ? "fixed inset-0 z-[9999] bg-black"
+          ? "game-container--fs-fallback"
           : ""
       }`}
     >

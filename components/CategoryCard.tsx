@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import {
   Gamepad2,
   Puzzle,
@@ -12,6 +15,7 @@ import {
   Skull,
   Swords,
   Zap,
+  Loader2,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -42,13 +46,20 @@ export default function CategoryCard({
   icon,
   gameCount,
 }: CategoryCardProps) {
+  const [loading, setLoading] = useState(false);
+
   return (
     <Link
       href={`/categories/${slug}`}
-      className="group flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 px-5 py-4 transition hover:border-accent-500/30 hover:bg-zinc-900"
+      onClick={() => setLoading(true)}
+      className="group relative flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 px-5 py-4 transition hover:border-accent-500/30 hover:bg-zinc-900"
     >
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 text-accent-400 transition group-hover:bg-accent-500/20">
-        {iconMap[icon] ?? <Gamepad2 className="h-6 w-6" />}
+      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 text-accent-400 transition group-hover:bg-accent-500/20">
+        {loading ? (
+          <Loader2 className="h-6 w-6 animate-spin text-accent-400" />
+        ) : (
+          iconMap[icon] ?? <Gamepad2 className="h-6 w-6" />
+        )}
       </div>
       <div className="min-w-0">
         <h3 className="truncate text-sm font-semibold text-white">{name}</h3>

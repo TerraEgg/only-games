@@ -35,8 +35,10 @@ export default function SearchContent() {
     if (categoryFilter) {
       results = results.filter((g) => g.categorySlug === categoryFilter);
     }
-    // Sort by play count descending
-    return [...results].sort((a, b) => b.playCount - a.playCount);
+    // Hide games without thumbnails, sort by play count descending
+    return [...results]
+      .filter((g) => !!g.thumbnail)
+      .sort((a, b) => b.playCount - a.playCount);
   }, [data?.games, q, categoryFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);

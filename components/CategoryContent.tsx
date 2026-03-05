@@ -22,9 +22,11 @@ export default function CategoryContent({ slug }: Props) {
 
   const allGames = useMemo(
     () =>
-      (data?.games ?? []).filter(
-        (g) => g.categorySlug === slug
-      ),
+      (data?.games ?? [])
+        .filter((g) => g.categorySlug === slug && !!g.thumbnail)
+        .sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ),
     [data?.games, slug]
   );
 

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Play, Eye } from "lucide-react";
+import Image from "next/image";
+import { ChevronLeft, Gamepad2, Eye } from "lucide-react";
 import TrackingScript from "@/components/TrackingScript";
 import GameEmbed from "@/components/GameEmbed";
 
@@ -31,12 +32,13 @@ export default async function GamePage({ params }: Props) {
     data: { playCount: { increment: 1 } },
   });
 
-  // Related games from same category
+  // Related games from same category (only ones with thumbnails)
   const related = await prisma.game.findMany({
     where: {
       categoryId: game.categoryId,
       isActive: true,
       id: { not: game.id },
+      thumbnail: { not: null },
     },
     take: 4,
     orderBy: { playCount: "desc" },
@@ -93,8 +95,23 @@ export default async function GamePage({ params }: Props) {
                 href={`/games/${r.slug}`}
                 className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/50 transition hover:border-accent-500/30"
               >
-                <div className="flex aspect-video items-center justify-center bg-zinc-800">
-                  <Play className="h-8 w-8 text-zinc-600 transition group-hover:text-accent-400" />
+                <div className="relative aspect-video w-full overflow-hidden bg-zinc-800">
+                  {r.thumbnail ? (
+                    <Image
+                      src={r.thumbnail}
+                      alt={r.title}
+                      fill
+                      className="object-cover transition duration-300 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100vw, 25vw"
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-1.5">
+                      <Gamepad2 className="h-8 w-8 text-zinc-700" />
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                        No Thumbnail
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-3">
                   <h3 className="line-clamp-1 text-sm font-semibold text-white">
