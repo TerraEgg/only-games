@@ -20,6 +20,9 @@ model User {
   role          Role           @default(USER)
   isBanned      Boolean        @default(false) @map("is_banned")
   banReason     String?        @map("ban_reason")
+  activeBanId   String?        @map("active_ban_id")
+  isPaused      Boolean        @default(false) @map("is_paused")
+  themeColor    String         @default("#00ABED") @map("theme_color")
   totalPlayTime Int            @default(0) @map("total_play_time") // seconds
   createdAt     DateTime       @default(now()) @map("created_at")
   lastLogin     DateTime?      @map("last_login")
@@ -28,6 +31,35 @@ model User {
   savedCookies  SavedCookie[]
 
   @@map("users")
+}
+
+model GuestSession {
+  id          String    @id @default(cuid())
+  fingerprint String    @unique
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  country     String?
+  city        String?
+  isPaused    Boolean   @default(false) @map("is_paused")
+  lastSeen    DateTime  @default(now()) @map("last_seen")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  convertedUserId String? @map("converted_user_id")
+
+  @@index([lastSeen])
+  @@map("guest_sessions")
+}
+
+model AdminCommand {
+  id        String   @id @default(cuid())
+  targetId  String?  @map("target_id")    // null = broadcast to all
+  type      String                         // "ban" | "unban" | "pause" | "unpause" | "message" | "redirect"
+  payload   String   @db.Text             // JSON payload
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([targetId, consumed])
+  @@index([createdAt])
+  @@map("admin_commands")
 }
 
 model Notification {

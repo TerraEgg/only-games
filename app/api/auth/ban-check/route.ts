@@ -5,49 +5,45 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
 /**
- * Lightweight endpoint polled by the client.
- * - BanChecker polls this every 30s to detect live bans.
- * - Banned page polls this every 5s to detect unbans.
- * 
- * Checks the DB directly (not JWT) so ban/unban is always up to date.
- * Also accepts ?username=xxx for the banned page (user may not have session).
+ * Lightweight endpoint for checking ban & pause status.
+ * Uses activeBanId for precise ban tracking.
+ * Falls back to __og_banned_user cookie when session is gone (post-signOut).
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const usernameParam = url.searchParams.get("username");
 
-  // Try session first
   const session = await getServerSession(authOptions);
-  
-  let userId: string | null = session?.user?.id || null;
+  let userId: string | null = (session?.user as any)?.id || null;
 
-  // If no session but username provided (banned user checking their status)
-  if (!userId && usernameParam) {
-    const user = await prisma.user.findUnique({
-      where: { username: usernameParam },
-      select: { id: true, isBanned: true },
-    });
-    return NextResponse.json({ banned: !!user?.isBanned });
-  }
-
-  // Check by cookie — the banned page passes this
+  // Resolve username: query param → cookie fallback
   const cookieStore = cookies();
-  const banCookie = cookieStore.get("__og_banned");
+  const resolvedUsername = usernameParam || cookieStore.get("__og_banned_user")?.value || null;
 
-  if (!userId && banCookie?.value === "1") {
-    // User has ban cookie but no session — they can only check via username param
-    // Return banned: true (they still have the cookie)
-    return NextResponse.json({ banned: true });
+  if (!userId && resolvedUsername) {
+    const user = await prisma.user.findUnique({
+      where: { username: resolvedUsername },
+      select: { isBanned: true, activeBanId: true, isPaused: true },
+    });
+    return NextResponse.json({
+      banned: !!user?.isBanned,
+      banId: user?.activeBanId || null,
+      paused: !!user?.isPaused,
+    });
   }
 
   if (!userId) {
-    return NextResponse.json({ banned: false });
+    return NextResponse.json({ banned: false, paused: false });
   }
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isBanned: true },
+    select: { isBanned: true, activeBanId: true, isPaused: true },
   });
 
-  return NextResponse.json({ banned: !!user?.isBanned });
+  return NextResponse.json({
+    banned: !!user?.isBanned,
+    banId: user?.activeBanId || null,
+    paused: !!user?.isPaused,
+  });
 }

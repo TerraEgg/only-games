@@ -153,15 +153,20 @@ export default function AdminTrackingPage() {
                         {formatDateTime(a.startedAt)}
                       </td>
                       <td className="px-4 py-3">
-                        {a.endedAt ? (
-                          <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
-                            Ended
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
-                            Live
-                          </span>
-                        )}
+                        {(() => {
+                          const isLive = a.endedAt
+                            ? new Date(a.endedAt).getTime() > Date.now() - 60_000
+                            : new Date(a.startedAt).getTime() > Date.now() - 60_000;
+                          return isLive ? (
+                            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
+                              Live
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+                              Ended
+                            </span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );

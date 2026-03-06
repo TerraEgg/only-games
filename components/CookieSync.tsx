@@ -14,6 +14,8 @@ const EXCLUDED_PREFIXES = [
   "onlygames-fingerprint",
   "og_site_cache",
   "og_cookie_backup",
+  "og_theme",
+  "og_guest_fp",
   "ally-supports",
   "debug",
   "loglevel",
@@ -24,35 +26,37 @@ function isExcluded(key: string): boolean {
   return EXCLUDED_PREFIXES.some((p) => lower.startsWith(p));
 }
 
-function getOrigin(): string {
-  return typeof window !== "undefined" ? window.location.origin : "";
-}
-
-/* ─── Gather helpers ──────────────────────────────────────────── */
-
+/* ─── Gather ALL localStorage items ──────────────────────────── */
 function gatherLocalStorage(): { key: string; value: string; domain: string }[] {
   const items: { key: string; value: string; domain: string }[] = [];
-  const domain = getOrigin();
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key || isExcluded(key)) continue;
-    const value = localStorage.getItem(key);
-    if (value !== null) items.push({ key, value, domain });
-  }
+  const domain = typeof window !== "undefined" ? window.location.origin : "";
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || isExcluded(key)) continue;
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        items.push({ key, value, domain });
+      }
+    }
+  } catch {}
   return items;
 }
 
+/* ─── Gather browser cookies ──────────────────────────────────── */
 function gatherCookies(): { key: string; value: string; domain: string }[] {
   const items: { key: string; value: string; domain: string }[] = [];
-  const domain = getOrigin();
-  for (const pair of document.cookie.split(";")) {
-    const eqIdx = pair.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = pair.substring(0, eqIdx).trim();
-    const value = pair.substring(eqIdx + 1).trim();
-    if (!key || isExcluded(key)) continue;
-    items.push({ key: `cookie:${key}`, value, domain });
-  }
+  const domain = typeof window !== "undefined" ? window.location.origin : "";
+  try {
+    for (const pair of document.cookie.split(";")) {
+      const eqIdx = pair.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = pair.substring(0, eqIdx).trim();
+      const value = pair.substring(eqIdx + 1).trim();
+      if (!key || isExcluded(key)) continue;
+      items.push({ key: `cookie:${key}`, value, domain });
+    }
+  } catch {}
   return items;
 }
 
@@ -60,13 +64,13 @@ function gatherAll() {
   return [...gatherLocalStorage(), ...gatherCookies()];
 }
 
-/* ─── Local backup — overwritten every 5 s ────────────────────── */
+/* ─── Local backup ────────────────────────────────────────────── */
 const BACKUP_KEY = "og_cookie_backup";
 
 function saveLocalBackup() {
   try {
     localStorage.setItem(BACKUP_KEY, JSON.stringify(gatherAll()));
-  } catch { /* full */ }
+  } catch {}
 }
 
 function loadLocalBackup(): { key: string; value: string; domain: string }[] {
@@ -77,7 +81,6 @@ function loadLocalBackup(): { key: string; value: string; domain: string }[] {
 }
 
 /* ─── Upload helpers ──────────────────────────────────────────── */
-
 async function uploadItems(
   items: { key: string; value: string; domain: string }[],
   merge: boolean,
@@ -89,32 +92,36 @@ async function uploadItems(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items, merge }),
     });
-  } catch { /* silent */ }
+  } catch {}
 }
 
 async function uploadAll(merge = true) {
-  await uploadItems(gatherAll(), merge);
+  const items = gatherAll();
+  if (items.length === 0) return;
+  await uploadItems(items, merge);
 }
 
 function beaconAll() {
   const items = gatherAll();
   if (items.length === 0) return;
-  navigator.sendBeacon(
-    "/api/cookies",
-    new Blob([JSON.stringify({ items, merge: true })], { type: "application/json" }),
-  );
+  try {
+    navigator.sendBeacon(
+      "/api/cookies",
+      new Blob([JSON.stringify({ items, merge: true })], { type: "application/json" }),
+    );
+  } catch {}
 }
 
 /* ─── Download & restore ──────────────────────────────────────── */
-
 async function downloadAndRestore() {
   try {
     const res = await fetch("/api/cookies");
     if (!res.ok) return;
     const cookies: { key: string; value: string; domain: string }[] = await res.json();
-    const origin = getOrigin();
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
     for (const c of cookies) {
-      if (c.domain && c.domain !== origin) continue;
+      // Restore items from matching domain or empty domain
+      if (c.domain && c.domain !== origin && c.domain !== "") continue;
       if (c.key.startsWith("cookie:")) {
         document.cookie = `${c.key.slice(7)}=${c.value}; path=/; max-age=31536000; SameSite=Lax`;
       } else {
@@ -125,9 +132,9 @@ async function downloadAndRestore() {
 }
 
 function restoreFromBackup() {
-  const origin = getOrigin();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   for (const c of loadLocalBackup()) {
-    if (c.domain && c.domain !== origin) continue;
+    if (c.domain && c.domain !== origin && c.domain !== "") continue;
     if (c.key.startsWith("cookie:")) {
       document.cookie = `${c.key.slice(7)}=${c.value}; path=/; max-age=31536000; SameSite=Lax`;
     } else {
@@ -139,16 +146,19 @@ function restoreFromBackup() {
 /* ═══════════════════════════════════════════════════════════════ */
 /*  CookieSync                                                    */
 /*                                                                */
+/*  Saves ALL localStorage keys + cookies to the server so        */
+/*  game data persists across devices/sessions.                   */
+/*                                                                */
 /*  Sync triggers:                                                */
 /*   1. On login → restore from local backup + DB → upload        */
 /*   2. Every 5 s → local backup + diff-check → upload changes    */
 /*   3. Every 60 s → full upload (safety net)                     */
-/*   4. Game open  (custom event from GameEmbed) → restore        */
-/*   5. Game close (custom event from GameEmbed) → save + upload  */
+/*   4. Game open  → restore from backup + DB                     */
+/*   5. Game close → save + upload                                */
 /*   6. Route change → save + upload                              */
-/*   7. Visibility hidden (tab switch / minimize) → beacon        */
+/*   7. Visibility hidden → beacon                                */
 /*   8. Visibility visible → restore                              */
-/*   9. popstate (back / forward button) → save + upload          */
+/*   9. popstate (back / forward) → save + upload                 */
 /*  10. beforeunload + pagehide → local backup + beacon           */
 /*  11. Cross-tab storage event → upload changed key              */
 /* ═══════════════════════════════════════════════════════════════ */
@@ -165,12 +175,14 @@ export default function CookieSync() {
 
   function takeSnapshot(): Map<string, string> {
     const map = new Map<string, string>();
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key || isExcluded(key)) continue;
-      const v = localStorage.getItem(key);
-      if (v !== null) map.set(key, v);
-    }
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || isExcluded(key)) continue;
+        const v = localStorage.getItem(key);
+        if (v !== null) map.set(key, v);
+      }
+    } catch {}
     return map;
   }
 
@@ -178,7 +190,7 @@ export default function CookieSync() {
     const current = takeSnapshot();
     const prev = snapshotRef.current;
     const changed: { key: string; value: string; domain: string }[] = [];
-    const domain = getOrigin();
+    const domain = typeof window !== "undefined" ? window.location.origin : "";
 
     current.forEach((v, k) => {
       if (prev.get(k) !== v) changed.push({ key: k, value: v, domain });
@@ -317,7 +329,7 @@ export default function CookieSync() {
 
     function onStorage(e: StorageEvent) {
       if (!e.key || isExcluded(e.key)) return;
-      const domain = getOrigin();
+      const domain = typeof window !== "undefined" ? window.location.origin : "";
       uploadItems([{ key: e.key, value: e.newValue ?? "", domain }], true);
       if (e.newValue !== null) snapshotRef.current.set(e.key, e.newValue);
       else snapshotRef.current.delete(e.key);

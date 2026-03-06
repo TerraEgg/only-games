@@ -13,11 +13,11 @@ const config: Config = {
       },
       colors: {
         accent: {
-          DEFAULT: "#00ABED",
-          300: "#5CC8F2",
-          400: "#2BB8EF",
-          500: "#00ABED",
-          600: "#0091CC",
+          DEFAULT: "var(--accent-500, #00ABED)",
+          300: "var(--accent-300, #5CC8F2)",
+          400: "var(--accent-400, #2BB8EF)",
+          500: "var(--accent-500, #00ABED)",
+          600: "var(--accent-600, #0091CC)",
         },
       },
     },

@@ -17,6 +17,7 @@ export default function TrackingScript({ gameId }: { gameId: string }) {
   const { data: session } = useSession();
   const activityIdRef = useRef<string | null>(null);
   const endedRef = useRef(false);
+  const startingRef = useRef(false); // guard against double startTracking
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
   // Stable send function — works with both fetch and sendBeacon
@@ -46,9 +47,13 @@ export default function TrackingScript({ gameId }: { gameId: string }) {
     // Reset state for this mount
     endedRef.current = false;
     activityIdRef.current = null;
+    startingRef.current = false;
 
     // ── Start tracking ──────────────────────────────────────────────
     async function startTracking() {
+      // Prevent duplicate starts (React Strict Mode, session re-renders)
+      if (startingRef.current || activityIdRef.current) return;
+      startingRef.current = true;
       try {
         const res = await fetch("/api/tracking", {
           method: "POST",
@@ -59,11 +64,13 @@ export default function TrackingScript({ gameId }: { gameId: string }) {
           }),
         });
         const data = await res.json();
-        if (data.id) {
+        if (data.id && !endedRef.current) {
           activityIdRef.current = data.id;
           startHeartbeat();
         }
-      } catch {}
+      } catch {} finally {
+        startingRef.current = false;
+      }
     }
 
     // ── Heartbeat — updates endedAt every 30s ───────────────────────

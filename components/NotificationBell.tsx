@@ -21,6 +21,7 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const fetchNotificationsRef = useRef<(() => void) | null>(null);
 
   // Close on click outside
   useEffect(() => {
@@ -31,6 +32,15 @@ export default function NotificationBell() {
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Listen for instant SSE notification events
+  useEffect(() => {
+    function onNewNotification() {
+      fetchNotificationsRef.current?.();
+    }
+    window.addEventListener("og-new-notification", onNewNotification);
+    return () => window.removeEventListener("og-new-notification", onNewNotification);
   }, []);
 
   // Poll notifications
@@ -65,9 +75,10 @@ export default function NotificationBell() {
       } catch {}
     }
 
+    fetchNotificationsRef.current = fetchNotifications;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15_000); // poll every 15s
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); fetchNotificationsRef.current = null; };
   }, [session?.user?.id, router]);
 
   async function markRead(id: string) {

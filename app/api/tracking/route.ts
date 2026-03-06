@@ -84,6 +84,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "gameId required" }, { status: 400 });
   }
 
+  // ── Reuse existing active session for same user + game ────────────
+  const existing = await prisma.activity.findFirst({
+    where: {
+      userId: session.user.id,
+      gameId,
+      endedAt: { gt: new Date(Date.now() - 60_000) }, // heartbeat within last 60s
+    },
+    orderBy: { startedAt: "desc" },
+    select: { id: true },
+  });
+
+  if (existing) {
+    // Session is still alive — return existing ID instead of creating a duplicate
+    return NextResponse.json({ id: existing.id }, { status: 200 });
+  }
+
   // ── Close any stale/orphaned sessions for this user ───────────────
   // Sessions that never got an end signal (browser crash, etc.)
   const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_MS);
