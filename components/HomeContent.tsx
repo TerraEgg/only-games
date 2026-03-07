@@ -42,7 +42,7 @@ export default function HomeContent() {
   return (
     <div className="animate-fadeIn">
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-zinc-800/40">
+      <section className="relative border-b border-zinc-800/40">
         <div className="absolute inset-0 bg-gradient-to-b from-accent-600/5 via-transparent to-transparent" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6">
           <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-4 py-1.5 text-sm text-zinc-400">

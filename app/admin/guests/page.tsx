@@ -12,8 +12,10 @@ import {
   ExternalLink,
   Trash2,
   User,
+  Monitor,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
+import ViewScreenModal from "@/components/ViewScreenModal";
 
 interface GuestSession {
   id: string;
@@ -41,6 +43,7 @@ export default function AdminGuestsPage() {
     guest: GuestSession;
   } | null>(null);
   const [redirectUrl, setRedirectUrl] = useState("");
+  const [viewScreenGuest, setViewScreenGuest] = useState<GuestSession | null>(null);
 
   useEffect(() => {
     fetchGuests();
@@ -275,6 +278,15 @@ export default function AdminGuestsPage() {
                           </a>
                         )}
 
+                        {/* View Screen */}
+                        <button
+                          onClick={() => setViewScreenGuest(g)}
+                          className="rounded-lg p-1.5 text-cyan-400 hover:bg-cyan-500/10 transition"
+                          title="View Screen"
+                        >
+                          <Monitor className="h-4 w-4" />
+                        </button>
+
                         {/* Pause / Unpause */}
                         {g.isPaused ? (
                           <button
@@ -395,6 +407,15 @@ export default function AdminGuestsPage() {
             </div>
           </div>
         </Portal>
+      )}
+
+      {/* View Screen Modal */}
+      {viewScreenGuest && (
+        <ViewScreenModal
+          guestId={viewScreenGuest.id}
+          label={`Guest ${viewScreenGuest.fingerprint.slice(0, 12)}...`}
+          onClose={() => setViewScreenGuest(null)}
+        />
       )}
     </div>
   );

@@ -15,6 +15,7 @@ import {
   Eye,
   ArrowLeft,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 
 const links = [
@@ -26,6 +27,7 @@ const links = [
   { href: "/admin/thumbnails", label: "Thumbnails", icon: ImageOff },
   { href: "/admin/cookies", label: "Cookie Sync", icon: Cookie },
   { href: "/admin/tracking", label: "Tracking", icon: Activity },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export default function AdminSidebar() {

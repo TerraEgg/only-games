@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Eye } from "lucide-react";
 import TrackingScript from "@/components/TrackingScript";
+import GuestTrackingScript from "@/components/GuestTrackingScript";
 import GameEmbed from "@/components/GameEmbed";
 
 export const revalidate = 30;
@@ -48,6 +49,7 @@ export default async function GamePage({ params }: Props) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 animate-fadeIn">
       <TrackingScript gameId={game.id} />
+      <GuestTrackingScript gameId={game.id} />
 
       <Link
         href={`/categories/${game.category.slug}`}

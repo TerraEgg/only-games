@@ -9,6 +9,7 @@ import CacheToast from "@/components/CacheToast";
 import CookieSync from "@/components/CookieSync";
 import ThemeProvider from "@/components/ThemeProvider";
 import GuestTracker from "@/components/GuestTracker";
+import PageTracker from "@/components/PageTracker";
 
 export const metadata: Metadata = {
   title: "OnlyGames — Play Free Games Online",
@@ -30,6 +31,7 @@ export default function RootLayout({
               <CommandListener />
               <CookieSync />
               <GuestTracker />
+              <PageTracker />
               <Header />
               <main className="flex-1">{children}</main>
               <Footer />

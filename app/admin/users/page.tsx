@@ -14,8 +14,10 @@ import {
   Trash2,
   Pause,
   Play,
+  Monitor,
 } from "lucide-react";
 import { formatDateTime, formatPlayTime } from "@/lib/utils";
+import ViewScreenModal from "@/components/ViewScreenModal";
 
 interface User {
   id: string;
@@ -46,6 +48,7 @@ export default function AdminUsersPage() {
   const [msgTitle, setMsgTitle] = useState("Staff Message");
   const [msgBody, setMsgBody] = useState("");
   const [redirectUrl, setRedirectUrl] = useState("");
+  const [viewScreenUser, setViewScreenUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -236,6 +239,14 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {/* View Screen */}
+                      <button
+                        onClick={() => setViewScreenUser(user)}
+                        className="rounded-lg p-1.5 text-cyan-400 transition hover:bg-cyan-500/10"
+                        title="View Screen"
+                      >
+                        <Monitor className="h-4 w-4" />
+                      </button>
                       {/* Pause / Unpause */}
                       {!user.isBanned && user.role !== "ADMIN" && (
                         user.isPaused ? (
@@ -453,6 +464,15 @@ export default function AdminUsersPage() {
             </div>
           </div>
         </Portal>
+      )}
+
+      {/* View Screen Modal */}
+      {viewScreenUser && (
+        <ViewScreenModal
+          userId={viewScreenUser.id}
+          label={viewScreenUser.username}
+          onClose={() => setViewScreenUser(null)}
+        />
       )}
     </div>
   );

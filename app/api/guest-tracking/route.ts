@@ -4,20 +4,20 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 
-const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes — session is stale if no heartbeat
+const STALE_THRESHOLD_MS = 2 * 60 * 1000;
 
-// POST — start tracking, heartbeat, or end tracking
+// POST — start tracking, heartbeat, or end tracking for guests
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const isEnd = url.searchParams.get("end") === "1";
   const isHeartbeat = url.searchParams.get("heartbeat") === "1";
 
-  // ── Heartbeat — update endedAt to keep session alive ──────────────
+  // ── Heartbeat ─────────────────────────────────────────────────────
   if (isHeartbeat) {
     try {
       const body = await req.json();
       if (body.activityId) {
-        await prisma.activity.update({
+        await prisma.guestActivity.update({
           where: { id: body.activityId },
           data: { endedAt: new Date() },
         });
@@ -31,100 +31,75 @@ export async function POST(req: Request) {
     try {
       const body = await req.json();
       if (body.activityId) {
-        // Only set endedAt and calculate time if not already finalized
-        const activity = await prisma.activity.findUnique({
+        await prisma.guestActivity.update({
           where: { id: body.activityId },
-          select: { startedAt: true, endedAt: true, userId: true },
+          data: { endedAt: new Date() },
         });
-
-        if (activity) {
-          const now = new Date();
-          await prisma.activity.update({
-            where: { id: body.activityId },
-            data: { endedAt: now },
-          });
-
-          // Credit full play duration
-          const durationSeconds = Math.floor(
-            (now.getTime() - new Date(activity.startedAt).getTime()) / 1000
-          );
-
-          if (durationSeconds > 0 && durationSeconds < 86400) {
-            await prisma.user.update({
-              where: { id: activity.userId },
-              data: { totalPlayTime: { increment: durationSeconds } },
-            });
-          }
-        }
       }
     } catch {}
     return NextResponse.json({ ok: true });
   }
 
   // ── Start tracking ────────────────────────────────────────────────
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const body = await req.json();
+  const { gameId, fingerprint, deviceInfo } = body;
+
+  if (!gameId || !fingerprint) {
+    return NextResponse.json({ error: "gameId and fingerprint required" }, { status: 400 });
   }
 
-  const { gameId, geolocation, deviceInfo } = await req.json();
+  // Look up guest session
+  const guest = await prisma.guestSession.findUnique({
+    where: { fingerprint },
+  });
 
-  if (!gameId) {
-    return NextResponse.json({ error: "gameId required" }, { status: 400 });
+  if (!guest) {
+    return NextResponse.json({ error: "Guest not found" }, { status: 404 });
   }
 
-  // ── Reuse existing active session for same user + game ────────────
-  const existing = await prisma.activity.findFirst({
+  // Reuse existing active session for same guest + game
+  const existing = await prisma.guestActivity.findFirst({
     where: {
-      userId: session.user.id,
+      guestId: guest.id,
       gameId,
-      endedAt: { gt: new Date(Date.now() - 60_000) }, // heartbeat within last 60s
+      endedAt: { gt: new Date(Date.now() - 60_000) },
     },
     orderBy: { startedAt: "desc" },
     select: { id: true },
   });
 
   if (existing) {
-    // Session is still alive — return existing ID instead of creating a duplicate
     return NextResponse.json({ id: existing.id }, { status: 200 });
   }
 
-  // ── Close any stale/orphaned sessions for this user ───────────────
-  // Sessions that never got an end signal (browser crash, etc.)
+  // Close stale sessions
   const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_MS);
-  const staleSessions = await prisma.activity.findMany({
+  const staleSessions = await prisma.guestActivity.findMany({
     where: {
-      userId: session.user.id,
+      guestId: guest.id,
       OR: [
-        { endedAt: null }, // never got any heartbeat or end
-        {
-          endedAt: { lt: staleThreshold }, // last heartbeat > 2 min ago
-          // Only consider truly stale — recent heartbeats mean active
-        },
+        { endedAt: null },
+        { endedAt: { lt: staleThreshold } },
       ],
-      // Only look at sessions that started recently-ish (last 24h)
       startedAt: { gt: new Date(Date.now() - 86400000) },
     },
   });
 
-  // Close stale sessions (play time was credited when end signal fired)
   for (const stale of staleSessions) {
-    // Mark as closed — set endedAt if null
     if (!stale.endedAt) {
-      await prisma.activity.update({
+      await prisma.guestActivity.update({
         where: { id: stale.id },
-        data: { endedAt: stale.startedAt },
+        data: { endedAt: stale.endedAt || stale.startedAt },
       });
     }
   }
 
-  // ── Get IP & geo ──────────────────────────────────────────────────
+  // Get IP & geo
   const headersList = headers();
   const ip =
     headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     headersList.get("x-real-ip") ||
     "unknown";
-
   const userAgent = headersList.get("user-agent") || null;
 
   let country: string | null = null;
@@ -144,27 +119,26 @@ export async function POST(req: Request) {
     }
   } catch {}
 
-  const activity = await prisma.activity.create({
+  const activity = await prisma.guestActivity.create({
     data: {
-      userId: session.user.id,
+      guestId: guest.id,
       gameId,
       ipAddress: ip,
       deviceInfo: deviceInfo || null,
       userAgent,
-      geolocation: geolocation || null,
       country,
       city,
     },
   });
 
-  // ── Enforce 100-entry limit per user ──────────────────────────────
-  const count = await prisma.activity.count({
-    where: { userId: session.user.id },
+  // Enforce 100-entry limit per guest
+  const count = await prisma.guestActivity.count({
+    where: { guestId: guest.id },
   });
 
   if (count > 100) {
-    const oldest = await prisma.activity.findMany({
-      where: { userId: session.user.id },
+    const oldest = await prisma.guestActivity.findMany({
+      where: { guestId: guest.id },
       orderBy: { startedAt: "desc" },
       skip: 100,
       take: 1,
@@ -172,9 +146,9 @@ export async function POST(req: Request) {
     });
 
     if (oldest.length > 0) {
-      await prisma.activity.deleteMany({
+      await prisma.guestActivity.deleteMany({
         where: {
-          userId: session.user.id,
+          guestId: guest.id,
           startedAt: { lte: oldest[0].startedAt },
           id: { not: activity.id },
         },
@@ -185,7 +159,7 @@ export async function POST(req: Request) {
   return NextResponse.json({ id: activity.id }, { status: 201 });
 }
 
-// GET — admin: list activities
+// GET — admin: list guest activities
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "ADMIN") {
@@ -196,17 +170,16 @@ export async function GET(req: Request) {
   const live = url.searchParams.get("live") === "1";
   const limit = parseInt(url.searchParams.get("limit") || "100");
 
-  // "Live" = endedAt updated within last 60s (heartbeat-based)
   const where = live
     ? { endedAt: { gt: new Date(Date.now() - 60_000) } }
     : {};
 
-  const activities = await prisma.activity.findMany({
+  const activities = await prisma.guestActivity.findMany({
     where,
     orderBy: { startedAt: "desc" },
     take: limit,
     include: {
-      user: { select: { username: true } },
+      guest: { select: { fingerprint: true, ipAddress: true, country: true, city: true } },
       game: { select: { title: true } },
     },
   });

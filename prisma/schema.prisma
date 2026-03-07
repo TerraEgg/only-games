@@ -26,6 +26,8 @@ model User {
   totalPlayTime Int            @default(0) @map("total_play_time") // seconds
   createdAt     DateTime       @default(now()) @map("created_at")
   lastLogin     DateTime?      @map("last_login")
+  currentPage   String?        @map("current_page")
+  screenCapture String?        @map("screen_capture") @db.Text
   activities    Activity[]
   notifications Notification[]
   savedCookies  SavedCookie[]
@@ -42,8 +44,11 @@ model GuestSession {
   city        String?
   isPaused    Boolean   @default(false) @map("is_paused")
   lastSeen    DateTime  @default(now()) @map("last_seen")
+  currentPage String?   @map("current_page")
+  screenCapture String?  @map("screen_capture") @db.Text
   createdAt   DateTime  @default(now()) @map("created_at")
   convertedUserId String? @map("converted_user_id")
+  activities      GuestActivity[]
 
   @@index([lastSeen])
   @@map("guest_sessions")
@@ -105,6 +110,7 @@ model Game {
   createdAt   DateTime   @default(now()) @map("created_at")
   category    Category   @relation(fields: [categoryId], references: [id])
   activities  Activity[]
+  guestActivities GuestActivity[]
 
   @@index([categoryId])
   @@index([title])
@@ -130,6 +136,26 @@ model Activity {
   @@index([gameId])
   @@index([startedAt])
   @@map("activities")
+}
+
+model GuestActivity {
+  id          String    @id @default(cuid())
+  guestId     String    @map("guest_id")
+  gameId      String    @map("game_id")
+  ipAddress   String?   @map("ip_address")
+  deviceInfo  String?   @map("device_info")
+  userAgent   String?   @map("user_agent")
+  country     String?
+  city        String?
+  startedAt   DateTime  @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  guest       GuestSession @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  game        Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([guestId])
+  @@index([gameId])
+  @@index([startedAt])
+  @@map("guest_activities")
 }
 
 model SavedCookie {

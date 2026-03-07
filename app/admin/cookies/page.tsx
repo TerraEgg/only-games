@@ -132,12 +132,13 @@ export default function AdminCookiesPage() {
   async function handleDeleteAllForUser(userId: string) {
     const userCookies = cookies.filter((c) => c.userId === userId);
     if (!confirm(`Delete all ${userCookies.length} saved cookies for this user?`)) return;
-    await Promise.all(
+    // Optimistic: update UI instantly, fire API in background
+    setCookies((prev) => prev.filter((c) => c.userId !== userId));
+    Promise.all(
       userCookies.map((c) =>
         fetch(`/api/admin/cookies/${c.id}`, { method: "DELETE" })
       )
-    );
-    setCookies((prev) => prev.filter((c) => c.userId !== userId));
+    ).catch(() => {});
   }
 
   function formatBytes(bytes: number): string {
