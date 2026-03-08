@@ -7,6 +7,7 @@ import { Search, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useHideExternal } from "@/lib/useHideExternal";
+import AdUnit from "@/components/AdUnit";
 
 interface PagedResult {
   games: CachedGame[];
@@ -108,6 +109,9 @@ export default function SearchContent() {
         </div>
       )}
 
+      {/* Ad after filters */}
+      <AdUnit variant="horizontal" className="mb-8 rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
+
       {q && !loading && (
         <p className="mb-6 text-sm text-zinc-500">
           {total} result{total !== 1 ? "s" : ""} for &ldquo;{q}&rdquo;
@@ -141,6 +145,9 @@ export default function SearchContent() {
           </p>
         </div>
       )}
+
+      {/* Ad before pagination */}
+      <AdUnit variant="horizontal" className="mt-10 rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
 
       {totalPages > 1 && (
         <div className="mt-10 flex items-center justify-center gap-2">

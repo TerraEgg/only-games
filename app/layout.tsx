@@ -24,6 +24,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1525573862471709"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="flex min-h-screen flex-col">
         <Providers>
           <ThemeProvider>

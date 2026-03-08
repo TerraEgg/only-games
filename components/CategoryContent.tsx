@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useHideExternal } from "@/lib/useHideExternal";
+import AdUnit from "@/components/AdUnit";
 
 interface Props {
   slug: string;
@@ -103,6 +104,9 @@ export default function CategoryContent({ slug }: Props) {
         </p>
       </div>
 
+      {/* Ad after header */}
+      <AdUnit variant="horizontal" className="mb-8 rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
+
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-accent-400" />
@@ -178,6 +182,9 @@ export default function CategoryContent({ slug }: Props) {
           </button>
         </div>
       )}
+
+      {/* Ad at bottom */}
+      <AdUnit variant="horizontal" className="mt-10 rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
     </div>
   );
 }

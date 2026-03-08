@@ -7,6 +7,7 @@ import SearchBar from "@/components/SearchBar";
 import { useHideExternal } from "@/lib/useHideExternal";
 import { Gamepad2, TrendingUp, Sparkles, Loader2 } from "lucide-react";
 import { useMemo } from "react";
+import AdUnit from "@/components/AdUnit";
 
 export default function HomeContent() {
   const { data, loading } = useData();
@@ -80,6 +81,9 @@ export default function HomeContent() {
           </section>
         )}
 
+        {/* Ad between categories and popular */}
+        <AdUnit variant="horizontal" className="rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
+
         {/* Popular Games */}
         {popularGames.length > 0 && (
           <section>
@@ -123,6 +127,9 @@ export default function HomeContent() {
             </div>
           </section>
         )}
+
+        {/* Ad before footer */}
+        <AdUnit variant="horizontal" className="rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
 
         {/* Empty state */}
         {totalGames === 0 && categories.length === 0 && (

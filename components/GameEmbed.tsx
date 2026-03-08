@@ -211,7 +211,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
             title={title}
             allowFullScreen
             allow="autoplay; gamepad; fullscreen"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-forms"
             loading="eager"
             onLoad={() => setLoading(false)}
           />

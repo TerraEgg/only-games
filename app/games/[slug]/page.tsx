@@ -6,6 +6,7 @@ import { ChevronLeft, Gamepad2, Eye } from "lucide-react";
 import TrackingScript from "@/components/TrackingScript";
 import GuestTrackingScript from "@/components/GuestTrackingScript";
 import GameEmbed from "@/components/GameEmbed";
+import AdUnit from "@/components/AdUnit";
 
 export const revalidate = 30;
 
@@ -84,6 +85,9 @@ export default async function GamePage({ params }: Props) {
         </p>
       )}
 
+      {/* Ad between game info and related games */}
+      <AdUnit variant="horizontal" className="mt-10 rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
+
       {/* Related games */}
       {related.length > 0 && (
         <section className="mt-14">
@@ -128,6 +132,9 @@ export default async function GamePage({ params }: Props) {
           </div>
         </section>
       )}
+
+      {/* Ad at bottom */}
+      <AdUnit variant="horizontal" className="mt-10 rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
     </div>
   );
 }
