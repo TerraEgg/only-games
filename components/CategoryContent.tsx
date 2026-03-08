@@ -1,18 +1,29 @@
 "use client";
 
-import { useData } from "@/components/DataProvider";
+import { useData, CachedGame } from "@/components/DataProvider";
 import GameCard from "@/components/GameCard";
 import Link from "next/link";
-import { ChevronLeft, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useHideExternal } from "@/lib/useHideExternal";
 
 interface Props {
   slug: string;
 }
 
+interface PagedResult {
+  games: CachedGame[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export default function CategoryContent({ slug }: Props) {
-  const { data, loading } = useData();
+  const { data } = useData();
+  const { hideExternal } = useHideExternal();
   const [page, setPage] = useState(1);
+  const [result, setResult] = useState<PagedResult | null>(null);
+  const [loading, setLoading] = useState(true);
   const perPage = 20;
 
   const category = useMemo(
@@ -20,24 +31,43 @@ export default function CategoryContent({ slug }: Props) {
     [data?.categories, slug]
   );
 
-  const allGames = useMemo(
-    () =>
-      (data?.games ?? [])
-        .filter((g) => g.categorySlug === slug && !!g.thumbnail)
-        .sort((a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ),
-    [data?.games, slug]
-  );
+  const fetchGames = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(perPage),
+      sort: "recent",
+      category: slug,
+    });
+    if (hideExternal) params.set("hideExternal", "1");
+    try {
+      const res = await fetch(`/api/games?${params}`);
+      const data = await res.json();
+      setResult({
+        games: data.games.map((g: any) => ({
+          ...g,
+          categoryName: g.category?.name ?? "",
+        })),
+        total: data.total,
+        page: data.page,
+        totalPages: data.totalPages,
+      });
+    } catch {
+      setResult({ games: [], total: 0, page: 1, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [slug, page, hideExternal]);
 
-  const totalPages = Math.ceil(allGames.length / perPage);
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames]);
 
-  const pagedGames = useMemo(
-    () => allGames.slice((page - 1) * perPage, page * perPage),
-    [allGames, page]
-  );
+  const games = result?.games ?? [];
+  const totalPages = result?.totalPages ?? 0;
+  const total = result?.total ?? 0;
 
-  if (loading) {
+  if (!data) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-accent-400" />
@@ -69,13 +99,17 @@ export default function CategoryContent({ slug }: Props) {
           <p className="mt-2 text-zinc-400">{category.description}</p>
         )}
         <p className="mt-1 text-sm text-zinc-600">
-          {allGames.length} games
+          {total} games
         </p>
       </div>
 
-      {pagedGames.length > 0 ? (
+      {loading ? (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-accent-400" />
+        </div>
+      ) : games.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {pagedGames.map((game) => (
+          {games.map((game) => (
             <GameCard
               key={game.id}
               slug={game.slug}
@@ -92,25 +126,56 @@ export default function CategoryContent({ slug }: Props) {
         </p>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-10 flex items-center justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => {
-                setPage(p);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
-                p === page
-                  ? "bg-accent-600 text-white"
-                  : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
+          <button
+            onClick={() => {
+              setPage((p) => Math.max(1, p - 1));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={page <= 1}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+            let p: number;
+            if (totalPages <= 7) {
+              p = i + 1;
+            } else if (page <= 4) {
+              p = i + 1;
+            } else if (page >= totalPages - 3) {
+              p = totalPages - 6 + i;
+            } else {
+              p = page - 3 + i;
+            }
+            return (
+              <button
+                key={p}
+                onClick={() => {
+                  setPage(p);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
+                  p === page
+                    ? "bg-accent-600 text-white"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => {
+              setPage((p) => Math.min(totalPages, p + 1));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={page >= totalPages}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>

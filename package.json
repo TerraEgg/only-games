@@ -7,12 +7,13 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && node -e \"const fs=require('fs');const p='public/ruffle';if(!fs.existsSync(p))fs.mkdirSync(p,{recursive:true});fs.readdirSync('node_modules/@ruffle-rs/ruffle').filter(f=>!f.startsWith('.')).forEach(f=>fs.copyFileSync('node_modules/@ruffle-rs/ruffle/'+f,p+'/'+f))\"",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.11.0",
+    "@ruffle-rs/ruffle": "^0.2.0-nightly.2026.3.6",
     "bcryptjs": "^2.4.3",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.356.0",

@@ -2,31 +2,57 @@
 
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useRef, useEffect, useMemo } from "react";
-import { useData } from "@/components/DataProvider";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { getHideExternal } from "@/lib/useHideExternal";
+
+interface Suggestion {
+  id: string;
+  slug: string;
+  title: string;
+  thumbnail: string | null;
+  categoryName: string;
+  playCount: number;
+}
 
 export default function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
   const [query, setQuery] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(-1);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const router = useRouter();
-  const { data } = useData();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const games = data?.games ?? [];
-
-  const suggestions = useMemo(() => {
-    if (query.trim().length < 1) return [];
-    const lower = query.toLowerCase();
-    return games
-      .filter(
-        (g) => g.title.toLowerCase().includes(lower) && g.thumbnail
-      )
-      .sort((a, b) => b.playCount - a.playCount)
-      .slice(0, 6);
-  }, [games, query]);
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length < 1) {
+      setSuggestions([]);
+      return;
+    }
+    try {
+      const params = new URLSearchParams({
+        search: q,
+        limit: "6",
+        sort: "popular",
+        page: "1",
+      });
+      if (getHideExternal()) params.set("hideExternal", "1");
+      const res = await fetch(`/api/games?${params}`);
+      const data = await res.json();
+      setSuggestions(
+        (data.games ?? []).map((g: any) => ({
+          id: g.id,
+          slug: g.slug,
+          title: g.title,
+          thumbnail: g.thumbnail,
+          categoryName: g.category?.name ?? "",
+          playCount: g.playCount,
+        }))
+      );
+    } catch {
+      setSuggestions([]);
+    }
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -75,8 +101,14 @@ export default function SearchBar({ defaultValue = "" }: { defaultValue?: string
     setSel(-1);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setOpen(val.trim().length >= 1);
-    }, 120);
+      if (val.trim().length >= 1) {
+        setOpen(true);
+        fetchSuggestions(val);
+      } else {
+        setOpen(false);
+        setSuggestions([]);
+      }
+    }, 200);
   }
 
   return (

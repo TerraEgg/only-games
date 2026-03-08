@@ -4,12 +4,14 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme, THEME_PRESETS, ThemePreset } from "@/components/ThemeProvider";
-import { Palette, Check, Loader2, User } from "lucide-react";
+import { useHideExternal } from "@/lib/useHideExternal";
+import { Palette, Check, Loader2, User, EyeOff, Eye } from "lucide-react";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { accent, setTheme } = useTheme();
+  const { hideExternal, setHideExternal } = useHideExternal();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -87,6 +89,34 @@ export default function ProfilePage() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Game filter section */}
+      <div className="mt-6 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <EyeOff className="h-5 w-5 text-accent-400" />
+          <h2 className="text-lg font-semibold text-white">Game Filters</h2>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-zinc-300">Hide external games</p>
+            <p className="text-xs text-zinc-500">
+              Only show internally hosted games across the site
+            </p>
+          </div>
+          <button
+            onClick={() => setHideExternal(!hideExternal)}
+            className={`relative inline-flex h-7 w-12 flex-shrink-0 rounded-full transition-colors ${
+              hideExternal ? "bg-accent-600" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ${
+                hideExternal ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
       </div>
     </div>

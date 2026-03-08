@@ -8,12 +8,30 @@ interface GameEmbedProps {
   title: string;
 }
 
+/** Check if a URL points to a .swf file */
+function isSWF(url: string): boolean {
+  try {
+    const pathname = new URL(url, window.location.origin).pathname;
+    return pathname.toLowerCase().endsWith(".swf");
+  } catch {
+    return url.toLowerCase().endsWith(".swf");
+  }
+}
+
 export default function GameEmbed({ url, title }: GameEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const ruffleContainerRef = useRef<HTMLDivElement>(null);
+  const rufflePlayerRef = useRef<HTMLElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [swf, setSwf] = useState(false);
+
+  // Detect SWF after mount to avoid hydration mismatch
+  useEffect(() => {
+    setSwf(isSWF(url));
+  }, [url]);
 
   // ── Fire game-open on mount, game-close on unmount ────────────
   useEffect(() => {
@@ -22,6 +40,77 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
       window.dispatchEvent(new CustomEvent("game-close", { detail: { url, title } }));
     };
   }, [url, title]);
+
+  // ── Load Ruffle for SWF games ─────────────────────────────────
+  useEffect(() => {
+    if (!swf) return;
+
+    let cancelled = false;
+
+    async function loadRuffle() {
+      // Dynamically load Ruffle if not already loaded
+      if (!(window as unknown as Record<string, unknown>).RufflePlayer) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "/ruffle/ruffle.js";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load Ruffle"));
+          document.head.appendChild(script);
+        });
+      }
+
+      if (cancelled) return;
+
+      // Get the Ruffle API
+      const ruffle = (window as unknown as Record<string, unknown>).RufflePlayer as {
+        newest: () => {
+          createPlayer: () => HTMLElement & {
+            load: (config: Record<string, unknown>) => Promise<void>;
+          };
+        };
+      };
+
+      const player = ruffle.newest().createPlayer();
+      // Size the player to fill its container
+      player.style.width = "100%";
+      player.style.height = "100%";
+
+      if (ruffleContainerRef.current) {
+        ruffleContainerRef.current.innerHTML = "";
+        ruffleContainerRef.current.appendChild(player);
+        rufflePlayerRef.current = player;
+      }
+
+      // Route through proxy to avoid CORS issues with external SWF files
+      const swfUrl = url.startsWith("/")
+        ? url
+        : `/api/swf-proxy?url=${encodeURIComponent(url)}`;
+
+      await player.load({
+        url: swfUrl,
+        autoplay: "on",
+        unmuteOverlay: "hidden",
+        logLevel: "error",
+        contextMenu: "rightClickOnly",
+        preferredRenderer: "webgpu",
+      });
+
+      if (!cancelled) setLoading(false);
+    }
+
+    loadRuffle().catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+      // Clean up player
+      if (ruffleContainerRef.current) {
+        ruffleContainerRef.current.innerHTML = "";
+      }
+      rufflePlayerRef.current = null;
+    };
+  }, [swf, url]);
 
   // ── Fullscreen toggle ──────────────────────────────────────────
   const toggleFullscreen = useCallback(async () => {
@@ -108,18 +197,25 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
         </div>
       )}
 
-      {/* Game iframe */}
+      {/* Game content — SWF via Ruffle or iframe */}
       <div className="game-frame">
-        <iframe
-          ref={iframeRef}
-          src={url}
-          title={title}
-          allowFullScreen
-          allow="autoplay; gamepad; fullscreen"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-          loading="eager"
-          onLoad={() => setLoading(false)}
-        />
+        {swf ? (
+          <div
+            ref={ruffleContainerRef}
+            style={{ width: "100%", height: "100%" }}
+          />
+        ) : (
+          <iframe
+            ref={iframeRef}
+            src={url}
+            title={title}
+            allowFullScreen
+            allow="autoplay; gamepad; fullscreen"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            loading="eager"
+            onLoad={() => setLoading(false)}
+          />
+        )}
       </div>
 
       {/* Floating controls — visible on hover */}

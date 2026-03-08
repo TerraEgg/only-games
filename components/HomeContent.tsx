@@ -1,34 +1,31 @@
 "use client";
 
-import { useData, CachedGame, CachedCategory } from "@/components/DataProvider";
+import { useData } from "@/components/DataProvider";
 import CategoryCard from "@/components/CategoryCard";
 import GameCard from "@/components/GameCard";
 import SearchBar from "@/components/SearchBar";
+import { useHideExternal } from "@/lib/useHideExternal";
 import { Gamepad2, TrendingUp, Sparkles, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 
 export default function HomeContent() {
   const { data, loading } = useData();
 
+  const { hideExternal } = useHideExternal();
   const categories = data?.categories ?? [];
-  const totalGames = data?.games.length ?? 0;
+  const totalGames = data?.totalGames ?? 0;
 
   const popularGames = useMemo(
-    () =>
-      [...(data?.games ?? [])]
-        .filter((g) => !!g.thumbnail)
-        .sort((a, b) => b.playCount - a.playCount)
-        .slice(0, 8),
-    [data?.games]
+    () => hideExternal
+      ? (data?.popularGames ?? []).filter((g) => g.source !== "EXTERNAL")
+      : data?.popularGames ?? [],
+    [data?.popularGames, hideExternal]
   );
-
   const recentGames = useMemo(
-    () =>
-      [...(data?.games ?? [])]
-        .filter((g) => !!g.thumbnail)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 8),
-    [data?.games]
+    () => hideExternal
+      ? (data?.recentGames ?? []).filter((g) => g.source !== "EXTERNAL")
+      : data?.recentGames ?? [],
+    [data?.recentGames, hideExternal]
   );
 
   if (loading) {

@@ -7,13 +7,18 @@ import { slugify } from "@/lib/utils";
 /**
  * POST /api/games/import
  * Bulk-import games from JSON array.
- * Expected format per item:
- *   { name: string, dispName: string, url: string, thumbnail?: string }
  *
- * - Uses `dispName` as the game title
- * - Uses `name` to build the slug
- * - Auto-creates "Uncategorized" category if it doesn't exist
- * - Skips duplicates (matching slug)
+ * Supports two formats:
+ *
+ * Format A (legacy):
+ *   { name, dispName, url, thumbnail? }
+ *
+ * Format B (SWF dump):
+ *   { name, swf_url?, direct_link?, thumbnail_url?, category?, is_swf? }
+ *   - Uses swf_url if present, else direct_link as game URL
+ *   - Uses thumbnail_url for thumbnail
+ *   - Matches or creates category from "category" field
+ *   - Sets source to "EXTERNAL" and description
  */
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -21,12 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  let items: Array<{
-    name?: string;
-    dispName?: string;
-    url?: string;
-    thumbnail?: string;
-  }>;
+  let items: Array<Record<string, unknown>>;
 
   try {
     items = await req.json();
@@ -59,6 +59,30 @@ export async function POST(req: Request) {
     });
   }
 
+  // Cache category lookups
+  const categoryCache = new Map<string, string>();
+
+  async function getCategoryId(catName?: string): Promise<string> {
+    if (!catName || !catName.trim()) return uncategorized!.id;
+    const key = catName.trim().toLowerCase();
+    if (categoryCache.has(key)) return categoryCache.get(key)!;
+
+    const catSlug = slugify(catName.trim());
+    let cat = await prisma.category.findUnique({ where: { slug: catSlug } });
+    if (!cat) {
+      cat = await prisma.category.create({
+        data: {
+          name: catName.trim(),
+          slug: catSlug,
+          icon: "Gamepad2",
+          sortOrder: 0,
+        },
+      });
+    }
+    categoryCache.set(key, cat.id);
+    return cat.id;
+  }
+
   const results = {
     imported: 0,
     skipped: 0,
@@ -66,24 +90,44 @@ export async function POST(req: Request) {
   };
 
   for (const item of items) {
-    const title = item.dispName?.trim();
-    const name = item.name?.trim();
-    const url = item.url?.trim();
-    const thumbnail = item.thumbnail?.trim() || null;
+    // Detect format:
+    // Format B has "swf_url" or "direct_link" or "thumbnail_url"
+    const isFormatB = "swf_url" in item || "direct_link" in item || "thumbnail_url" in item;
+
+    let title: string | undefined;
+    let url: string | undefined;
+    let thumbnail: string | null = null;
+    let categoryId: string;
+    let source: string;
+    let description: string | null = null;
+
+    if (isFormatB) {
+      title = (item.name as string)?.trim();
+      url = ((item.swf_url as string) || (item.direct_link as string))?.trim();
+      thumbnail = (item.thumbnail_url as string)?.trim() || null;
+      categoryId = await getCategoryId(item.category as string);
+      source = "EXTERNAL";
+      description = "External Source - Not monitored";
+    } else {
+      title = ((item.dispName as string) || (item.name as string))?.trim();
+      url = (item.url as string)?.trim();
+      thumbnail = (item.thumbnail as string)?.trim() || null;
+      categoryId = uncategorized!.id;
+      source = "UNKNOWN";
+      description = null;
+    }
 
     if (!title || !url) {
       results.errors.push(
-        `Skipped: missing dispName or url${name ? ` (name: ${name})` : ""}`
+        `Skipped: missing name or url${title ? ` (${title})` : ""}`
       );
       results.skipped++;
       continue;
     }
 
-    // Build slug from name (fallback to title)
-    let slug = slugify(name || title);
-    if (!slug) {
-      slug = slugify(title);
-    }
+    // Build slug from name
+    let slug = slugify((item.name as string)?.trim() || title);
+    if (!slug) slug = slugify(title);
 
     // Check for duplicate
     const existing = await prisma.game.findUnique({ where: { slug } });
@@ -99,8 +143,9 @@ export async function POST(req: Request) {
           slug,
           url,
           thumbnail,
-          description: null,
-          categoryId: uncategorized.id,
+          description,
+          categoryId,
+          source,
           isFeatured: false,
           isActive: true,
         },

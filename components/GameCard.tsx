@@ -28,7 +28,7 @@ export default function GameCard({
       onClick={() => setLoading(true)}
       className="group flex flex-col overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/50 transition hover:border-accent-500/30 hover:bg-zinc-900"
     >
-      <div className="relative aspect-video w-full overflow-hidden bg-zinc-800">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-800">
         {thumbnail ? (
           <Image
             src={thumbnail}

@@ -14,7 +14,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const { title, url, thumbnail, description, categoryId, isFeatured } =
+  const { title, url, thumbnail, description, categoryId, isFeatured, source } =
     await req.json();
 
   let slug = slugify(title);
@@ -33,6 +33,7 @@ export async function PUT(
       description: description || null,
       categoryId,
       isFeatured: !!isFeatured,
+      source: source || "INTERNAL",
     },
   });
 

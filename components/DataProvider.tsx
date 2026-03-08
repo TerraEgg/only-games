@@ -32,12 +32,15 @@ export interface CachedGame {
   categorySlug: string;
   playCount: number;
   isFeatured: boolean;
+  source: string;
   createdAt: string;
 }
 
 export interface SiteData {
   categories: CachedCategory[];
-  games: CachedGame[];
+  popularGames: CachedGame[];
+  recentGames: CachedGame[];
+  totalGames: number;
   fingerprint: string;
   updatedAt: string;
 }

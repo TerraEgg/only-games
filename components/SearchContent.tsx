@@ -1,56 +1,77 @@
 "use client";
 
-import { useData } from "@/components/DataProvider";
+import { useData, CachedGame } from "@/components/DataProvider";
 import GameCard from "@/components/GameCard";
 import SearchBar from "@/components/SearchBar";
-import { Search, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Search, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useHideExternal } from "@/lib/useHideExternal";
+
+interface PagedResult {
+  games: CachedGame[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
 
 export default function SearchContent() {
-  const { data, loading } = useData();
+  const { data } = useData();
+  const { hideExternal } = useHideExternal();
   const searchParams = useSearchParams();
   const initialQ = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQ);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [result, setResult] = useState<PagedResult | null>(null);
+  const [loading, setLoading] = useState(true);
   const perPage = 20;
 
-  // Update local query when URL changes (e.g. via SearchBar form)
-  // The SearchBar navigates to /search?q=..., so we also read from URL
   const q = initialQ || query;
-
   const categories = data?.categories ?? [];
 
-  const filtered = useMemo(() => {
-    let results = data?.games ?? [];
-    if (q) {
-      const lower = q.toLowerCase();
-      results = results.filter(
-        (g) =>
-          g.title.toLowerCase().includes(lower) ||
-          (g.description?.toLowerCase().includes(lower) ?? false)
-      );
-    }
-    if (categoryFilter) {
-      results = results.filter((g) => g.categorySlug === categoryFilter);
-    }
-    // Hide games without thumbnails, sort by play count descending
-    return [...results]
-      .filter((g) => !!g.thumbnail)
-      .sort((a, b) => b.playCount - a.playCount);
-  }, [data?.games, q, categoryFilter]);
+  const fetchGames = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(perPage),
+      sort: "popular",
+    });
+    if (q) params.set("search", q);
+    if (categoryFilter) params.set("category", categoryFilter);
+    if (hideExternal) params.set("hideExternal", "1");
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+    try {
+      const res = await fetch(`/api/games?${params}`);
+      const data = await res.json();
+      setResult({
+        games: data.games.map((g: any) => ({
+          ...g,
+          categoryName: g.category?.name ?? "",
+        })),
+        total: data.total,
+        page: data.page,
+        totalPages: data.totalPages,
+      });
+    } catch {
+      setResult({ games: [], total: 0, page: 1, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [q, categoryFilter, page, hideExternal]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-accent-400" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [q, categoryFilter, hideExternal]);
+
+  const games = result?.games ?? [];
+  const totalPages = result?.totalPages ?? 0;
+  const total = result?.total ?? 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 animate-fadeIn">
@@ -59,14 +80,10 @@ export default function SearchContent() {
         <SearchBar defaultValue={q} />
       </div>
 
-      {/* Category filter pills */}
       {categories.length > 0 && (
         <div className="mb-8 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => {
-              setCategoryFilter("");
-              setPage(1);
-            }}
+            onClick={() => setCategoryFilter("")}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               !categoryFilter
                 ? "border-accent-500/40 bg-accent-500/10 text-accent-400"
@@ -78,10 +95,7 @@ export default function SearchContent() {
           {categories.map((cat) => (
             <button
               key={cat.slug}
-              onClick={() => {
-                setCategoryFilter(cat.slug);
-                setPage(1);
-              }}
+              onClick={() => setCategoryFilter(cat.slug)}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                 categoryFilter === cat.slug
                   ? "border-accent-500/40 bg-accent-500/10 text-accent-400"
@@ -94,17 +108,19 @@ export default function SearchContent() {
         </div>
       )}
 
-      {/* Results count */}
-      {q && (
+      {q && !loading && (
         <p className="mb-6 text-sm text-zinc-500">
-          {filtered.length} result{filtered.length !== 1 ? "s" : ""} for
-          &ldquo;{q}&rdquo;
+          {total} result{total !== 1 ? "s" : ""} for &ldquo;{q}&rdquo;
         </p>
       )}
 
-      {paged.length > 0 ? (
+      {loading ? (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-accent-400" />
+        </div>
+      ) : games.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {paged.map((game) => (
+          {games.map((game) => (
             <GameCard
               key={game.id}
               slug={game.slug}
@@ -126,25 +142,56 @@ export default function SearchContent() {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-10 flex items-center justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => {
-                setPage(p);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
-                p === page
-                  ? "bg-accent-600 text-white"
-                  : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
+          <button
+            onClick={() => {
+              setPage((p) => Math.max(1, p - 1));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={page <= 1}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+            let p: number;
+            if (totalPages <= 7) {
+              p = i + 1;
+            } else if (page <= 4) {
+              p = i + 1;
+            } else if (page >= totalPages - 3) {
+              p = totalPages - 6 + i;
+            } else {
+              p = page - 3 + i;
+            }
+            return (
+              <button
+                key={p}
+                onClick={() => {
+                  setPage(p);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
+                  p === page
+                    ? "bg-accent-600 text-white"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => {
+              setPage((p) => Math.min(totalPages, p + 1));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={page >= totalPages}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>
