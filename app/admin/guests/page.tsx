@@ -13,6 +13,7 @@ import {
   Trash2,
   User,
   Monitor,
+  ShieldAlert,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import ViewScreenModal from "@/components/ViewScreenModal";
@@ -25,6 +26,7 @@ interface GuestSession {
   country: string | null;
   city: string | null;
   isPaused: boolean;
+  hasAdblock: boolean;
   lastSeen: string;
   createdAt: string;
   convertedUserId: string | null;
@@ -207,6 +209,7 @@ export default function AdminGuestsPage() {
                 <th className="px-4 py-3 font-medium hidden md:table-cell">Location</th>
                 <th className="px-4 py-3 font-medium">Online</th>
                 <th className="px-4 py-3 font-medium">Last Seen</th>
+                <th className="px-4 py-3 font-medium hidden lg:table-cell">Adblock</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
@@ -241,6 +244,16 @@ export default function AdminGuestsPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-500">
                       {formatDateTime(g.lastSeen)}
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {g.hasAdblock ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-400">
+                          <ShieldAlert className="h-3 w-3" />
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-500">No</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -333,7 +346,7 @@ export default function AdminGuestsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={8} className="px-4 py-8 text-center text-zinc-600">
                     No guest sessions found
                   </td>
                 </tr>

@@ -7,12 +7,14 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props) {
-  // Lightweight — just return the slug as title; real name comes from cache
   const name = params.slug
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
-  return { title: `${name} — OnlyGames` };
+  return {
+    title: `${name} Games — Play Free Online`,
+    description: `Browse and play free ${name.toLowerCase()} games online on OnlyGames. New games added regularly.`,
+  };
 }
 
 export default function CategoryPage({ params }: Props) {

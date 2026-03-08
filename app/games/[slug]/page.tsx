@@ -15,9 +15,24 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props) {
-  const game = await prisma.game.findUnique({ where: { slug: params.slug } });
+  const game = await prisma.game.findUnique({
+    where: { slug: params.slug },
+    include: { category: { select: { name: true } } },
+  });
   if (!game) return { title: "Not Found" };
-  return { title: `${game.title} — OnlyGames` };
+  const description = game.description
+    ? game.description.slice(0, 155)
+    : `Play ${game.title} online for free on OnlyGames. ${game.category.name} game with ${game.playCount.toLocaleString()} plays.`;
+  return {
+    title: `${game.title} — Play Free Online`,
+    description,
+    openGraph: {
+      title: `${game.title} — Play Free on OnlyGames`,
+      description,
+      type: "website",
+      ...(game.thumbnail ? { images: [{ url: game.thumbnail, alt: game.title }] } : {}),
+    },
+  };
 }
 
 export default async function GamePage({ params }: Props) {
@@ -49,6 +64,28 @@ export default async function GamePage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 animate-fadeIn">
+      {/* JSON-LD structured data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: game.title,
+            description: game.description || `Play ${game.title} for free on OnlyGames.`,
+            url: `/games/${game.slug}`,
+            ...(game.thumbnail ? { image: game.thumbnail } : {}),
+            breadcrumb: {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+                { "@type": "ListItem", position: 2, name: game.category.name, item: `/categories/${game.category.slug}` },
+                { "@type": "ListItem", position: 3, name: game.title },
+              ],
+            },
+          }),
+        }}
+      />
       <TrackingScript gameId={game.id} />
       <GuestTrackingScript gameId={game.id} />
 

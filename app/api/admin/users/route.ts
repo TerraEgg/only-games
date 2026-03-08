@@ -19,6 +19,8 @@ export async function GET() {
       banReason: true,
       activeBanId: true,
       isPaused: true,
+      adsDisabled: true,
+      hasAdblock: true,
       totalPlayTime: true,
       createdAt: true,
       lastLogin: true,

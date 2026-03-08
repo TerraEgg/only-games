@@ -12,10 +12,37 @@ import GuestTracker from "@/components/GuestTracker";
 import PageTracker from "@/components/PageTracker";
 import { Analytics } from "@vercel/analytics/next";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://only-games-phi.vercel.app";
+
 export const metadata: Metadata = {
-  title: "OnlyGames — Play Free Games Online",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "OnlyGames — Play Free Games Online",
+    template: "%s | OnlyGames",
+  },
   description:
-    "Your ultimate destination for free online games. Browse hundreds of games across every genre.",
+    "Your ultimate destination for free online games. Browse hundreds of games across every genre — action, puzzle, racing, strategy and more.",
+  keywords: ["free online games", "browser games", "play games online", "HTML5 games", "flash games", "action games", "puzzle games", "racing games"],
+  openGraph: {
+    type: "website",
+    siteName: "OnlyGames",
+    title: "OnlyGames — Play Free Games Online",
+    description:
+      "Your ultimate destination for free online games. Browse hundreds of games across every genre.",
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OnlyGames — Play Free Games Online",
+    description:
+      "Your ultimate destination for free online games. Browse hundreds of games across every genre.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  alternates: { canonical: SITE_URL },
 };
 
 export default function RootLayout({
@@ -33,11 +60,20 @@ export default function RootLayout({
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('consent', 'default', {
+                'ad_storage': 'granted',
+                'ad_user_data': 'granted',
+                'ad_personalization': 'granted',
+                'analytics_storage': 'granted',
+              });
+              // For EEA/UK/Swiss visitors the Funding Choices CMP will
+              // override these to 'denied' until the user consents.
+              gtag('consent', 'default', {
                 'ad_storage': 'denied',
                 'ad_user_data': 'denied',
                 'ad_personalization': 'denied',
                 'analytics_storage': 'denied',
-                'wait_for_update': 500
+                'wait_for_update': 500,
+                'region': ['BE','BG','CZ','DK','DE','EE','IE','EL','ES','FR','HR','IT','CY','LV','LT','LU','HU','MT','NL','AT','PL','PT','RO','SI','SK','FI','SE','GB','IS','LI','NO','CH']
               });
             `,
           }}

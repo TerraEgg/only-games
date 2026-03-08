@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   Loader2,
   BarChart3,
+  Megaphone,
 } from "lucide-react";
 
 const links = [
@@ -28,6 +29,7 @@ const links = [
   { href: "/admin/cookies", label: "Cookie Sync", icon: Cookie },
   { href: "/admin/tracking", label: "Tracking", icon: Activity },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/ads", label: "Ads", icon: Megaphone },
 ];
 
 export default function AdminSidebar() {

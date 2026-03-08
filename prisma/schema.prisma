@@ -22,6 +22,8 @@ model User {
   banReason     String?        @map("ban_reason")
   activeBanId   String?        @map("active_ban_id")
   isPaused      Boolean        @default(false) @map("is_paused")
+  adsDisabled   Boolean        @default(false) @map("ads_disabled")
+  hasAdblock    Boolean        @default(false) @map("has_adblock")
   themeColor    String         @default("#00ABED") @map("theme_color")
   totalPlayTime Int            @default(0) @map("total_play_time") // seconds
   createdAt     DateTime       @default(now()) @map("created_at")
@@ -43,6 +45,7 @@ model GuestSession {
   country     String?
   city        String?
   isPaused    Boolean   @default(false) @map("is_paused")
+  hasAdblock  Boolean   @default(false) @map("has_adblock")
   lastSeen    DateTime  @default(now()) @map("last_seen")
   currentPage String?   @map("current_page")
   screenCapture String?  @map("screen_capture") @db.Text
@@ -172,4 +175,10 @@ model SavedCookie {
   @@unique([userId, key, domain])
   @@index([userId])
   @@map("saved_cookies")
+}
+
+model SiteSetting {
+  key   String @id
+  value String
+  @@map("site_settings")
 }

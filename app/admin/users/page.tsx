@@ -15,6 +15,7 @@ import {
   Pause,
   Play,
   Monitor,
+  ShieldAlert,
 } from "lucide-react";
 import { formatDateTime, formatPlayTime } from "@/lib/utils";
 import ViewScreenModal from "@/components/ViewScreenModal";
@@ -25,6 +26,8 @@ interface User {
   role: string;
   isBanned: boolean;
   isPaused: boolean;
+  hasAdblock: boolean;
+  adsDisabled: boolean;
   banReason: string | null;
   activeBanId: string | null;
   totalPlayTime: number;
@@ -184,6 +187,7 @@ export default function AdminUsersPage() {
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">Created</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">Last Login</th>
                 <th className="px-4 py-3 font-medium hidden lg:table-cell">Play Time</th>
+                <th className="px-4 py-3 font-medium hidden lg:table-cell">Adblock</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
@@ -227,6 +231,16 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell text-zinc-500">
                     {formatPlayTime(user.totalPlayTime)}
+                  </td>
+                  <td className="px-4 py-3 hidden lg:table-cell">
+                    {user.hasAdblock ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-400">
+                        <ShieldAlert className="h-3 w-3" />
+                        Yes
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-500">No</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {user.isBanned ? (
@@ -327,7 +341,7 @@ export default function AdminUsersPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-zinc-600">No users found</td>
+                  <td colSpan={9} className="px-4 py-8 text-center text-zinc-600">No users found</td>
                 </tr>
               )}
             </tbody>
