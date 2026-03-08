@@ -10,6 +10,7 @@ import CookieSync from "@/components/CookieSync";
 import ThemeProvider from "@/components/ThemeProvider";
 import GuestTracker from "@/components/GuestTracker";
 import PageTracker from "@/components/PageTracker";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "OnlyGames — Play Free Games Online",
@@ -39,6 +40,7 @@ export default function RootLayout({
             </DataProvider>
           </ThemeProvider>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
