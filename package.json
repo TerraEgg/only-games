@@ -14,6 +14,7 @@
   "dependencies": {
     "@prisma/client": "^5.11.0",
     "@ruffle-rs/ruffle": "^0.2.0-nightly.2026.3.6",
+    "@vercel/analytics": "^1.6.1",
     "bcryptjs": "^2.4.3",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.356.0",
