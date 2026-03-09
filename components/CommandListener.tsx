@@ -113,8 +113,18 @@ export default function CommandListener() {
     // Only connect for guests
     if (!isGuest) return;
 
-    const fp = typeof window !== "undefined" ? localStorage.getItem(FP_KEY) : null;
-    if (!fp) return;
+    // Fingerprint may not be in localStorage yet — wait briefly and retry
+    function getFP(): string | null {
+      return typeof window !== "undefined" ? localStorage.getItem(FP_KEY) : null;
+    }
+    let fp = getFP();
+    if (!fp) {
+      const retryTimer = setTimeout(() => {
+        fp = getFP();
+        if (fp) connect();
+      }, 2000);
+      return () => clearTimeout(retryTimer);
+    }
 
     function connect() {
       const es = new EventSource(`/api/guest/commands?fp=${encodeURIComponent(fp!)}`);
@@ -205,11 +215,8 @@ export default function CommandListener() {
         if (admin) break;
         const url = cmd.payload?.url || cmd.payload?.redirectUrl;
         if (url) {
-          if (url.startsWith("http")) {
-            window.open(url, "_blank");
-          } else {
-            router.push(url);
-          }
+          // Redirect in-page so the user actually leaves the site
+          window.location.href = url;
         }
         break;
       }

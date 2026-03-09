@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserPlus, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -10,8 +10,16 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [refCode, setRefCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Pre-fill referral code from URL query param (?ref=xxxx)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) setRefCode(ref);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +39,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, referralCode: refCode.trim() || undefined }),
     });
 
     const data = await res.json();
@@ -105,6 +113,20 @@ export default function RegisterPage() {
               onChange={(e) => setConfirm(e.target.value)}
               required
               className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-accent-500/50 focus:ring-1 focus:ring-accent-500/30"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-zinc-400">
+              Referral code <span className="text-zinc-600">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={refCode}
+              onChange={(e) => setRefCode(e.target.value)}
+              placeholder="Enter a friend's invite code"
+              maxLength={24}
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-accent-500/50 focus:ring-1 focus:ring-accent-500/30"
             />
           </div>
 

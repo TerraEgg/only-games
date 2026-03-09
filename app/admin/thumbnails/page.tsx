@@ -53,12 +53,21 @@ export default function AdminThumbnailsPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [gamesRes, catsRes] = await Promise.all([
-      fetch("/api/games"),
-      fetch("/api/categories"),
-    ]);
-    setGames(await gamesRes.json());
-    setCategories(await catsRes.json());
+    // Fetch all games (paginated API, loop until done)
+    let allGames: Game[] = [];
+    let page = 1;
+    while (true) {
+      const res = await fetch(`/api/games?limit=100&page=${page}`);
+      const data = await res.json();
+      const batch = Array.isArray(data) ? data : data.games ?? [];
+      allGames = allGames.concat(batch);
+      if (batch.length < 100) break;
+      page++;
+    }
+    setGames(allGames);
+    const catsRes = await fetch("/api/categories");
+    const catsData = await catsRes.json();
+    setCategories(Array.isArray(catsData) ? catsData : catsData.categories ?? []);
     setLoading(false);
   }
 

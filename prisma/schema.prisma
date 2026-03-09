@@ -26,6 +26,11 @@ model User {
   hasAdblock    Boolean        @default(false) @map("has_adblock")
   themeColor    String         @default("#00ABED") @map("theme_color")
   totalPlayTime Int            @default(0) @map("total_play_time") // seconds
+  referralCode  String?        @unique @map("referral_code")
+  referredById  String?        @map("referred_by_id")
+  referredBy    User?          @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]         @relation("Referrals")
+  prankCredits  Int            @default(0) @map("prank_credits") // costs 3 per redirect, max 3 per target
   createdAt     DateTime       @default(now()) @map("created_at")
   lastLogin     DateTime?      @map("last_login")
   currentPage   String?        @map("current_page")
@@ -33,6 +38,9 @@ model User {
   activities    Activity[]
   notifications Notification[]
   savedCookies  SavedCookie[]
+  chatMessages  ChatMessage[]
+  pranksSent    PrankRedirect[] @relation("PrankSender")
+  pranksReceived PrankRedirect[] @relation("PrankTarget")
 
   @@map("users")
 }
@@ -181,4 +189,56 @@ model SiteSetting {
   key   String @id
   value String
   @@map("site_settings")
+}
+
+model ChatRoom {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  createdBy String        @map("created_by")
+  createdAt DateTime      @default(now()) @map("created_at")
+  messages  ChatMessage[]
+  members   ChatRoomMember[]
+
+  @@map("chat_rooms")
+}
+
+model ChatRoomMember {
+  id       String   @id @default(cuid())
+  userId   String   @map("user_id")
+  roomId   String   @map("room_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+  room     ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([userId])
+  @@map("chat_room_members")
+}
+
+model ChatMessage {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  roomId    String?   @map("room_id") // null = Global chat
+  content   String    @db.Text
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      ChatRoom? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([roomId, createdAt])
+  @@map("chat_messages")
+}
+
+model PrankRedirect {
+  id          String   @id @default(cuid())
+  senderId    String   @map("sender_id")
+  targetId    String   @map("target_id")
+  redirectUrl String   @map("redirect_url")
+  executed    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  sender      User     @relation("PrankSender", fields: [senderId], references: [id], onDelete: Cascade)
+  target      User     @relation("PrankTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([targetId, executed])
+  @@index([senderId])
+  @@map("prank_redirects")
 }

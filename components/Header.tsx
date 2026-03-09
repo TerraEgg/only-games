@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
-import { Search, Menu, X, User, LogOut, Shield } from "lucide-react";
+import { Search, Menu, X, User, LogOut, Shield, MessageCircle, Gift } from "lucide-react";
 import { useRouter } from "next/navigation";
 import NotificationBell from "@/components/NotificationBell";
 import { useTheme } from "@/components/ThemeProvider";
@@ -77,6 +77,18 @@ export default function Header() {
                   Admin
                 </Link>
               )}
+              <Link
+                href="/chat"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition hover:text-white"
+              >
+                <MessageCircle className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/invite"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition hover:text-white"
+              >
+                <Gift className="h-4 w-4" />
+              </Link>
               <NotificationBell />
               <Link
                 href="/profile"
@@ -154,6 +166,22 @@ export default function Header() {
                     Admin Dashboard
                   </Link>
                 )}
+                <Link
+                  href="/chat"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat
+                </Link>
+                <Link
+                  href="/invite"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400"
+                >
+                  <Gift className="h-4 w-4" />
+                  Invite Friends
+                </Link>
                 <button
                   onClick={() => signOut({ callbackUrl: "/" })}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-400"

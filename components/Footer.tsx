@@ -47,6 +47,8 @@ export default function Footer() {
             <ul className="flex flex-col gap-1.5 text-sm text-zinc-500">
               <li><Link href="/" className="transition hover:text-zinc-300">Home</Link></li>
               <li><Link href="/search" className="transition hover:text-zinc-300">Browse Games</Link></li>
+              <li><Link href="/chat" className="transition hover:text-zinc-300">Chat</Link></li>
+              <li><Link href="/invite" className="transition hover:text-zinc-300">Invite Friends</Link></li>
               <li><Link href="/login" className="transition hover:text-zinc-300">Sign In</Link></li>
               <li><Link href="/register" className="transition hover:text-zinc-300">Sign Up</Link></li>
             </ul>

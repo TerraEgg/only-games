@@ -77,6 +77,24 @@ export async function GET() {
             }
           }
 
+          // Check for pending prank redirects
+          const prank = await prisma.prankRedirect.findFirst({
+            where: { targetId: userId, executed: false },
+            orderBy: { createdAt: "asc" },
+          });
+          if (prank) {
+            const prankPayload = JSON.stringify({
+              id: `prank-${prank.id}`,
+              type: "redirect",
+              payload: { url: prank.redirectUrl },
+            });
+            controller.enqueue(encoder.encode(`data: ${prankPayload}\n\n`));
+            await prisma.prankRedirect.update({
+              where: { id: prank.id },
+              data: { executed: true },
+            });
+          }
+
           // heartbeat
           controller.enqueue(encoder.encode(`: heartbeat\n\n`));
         } catch (e) {

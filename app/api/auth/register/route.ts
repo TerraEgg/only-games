@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json();
+    const { username, password, referralCode } = await req.json();
 
     if (!username || !password) {
       return NextResponse.json(
@@ -38,9 +38,31 @@ export async function POST(req: Request) {
 
     const passwordHash = await hash(password, 12);
 
+    // Look up referrer by referral code (if provided)
+    let referredById: string | null = null;
+    if (referralCode && typeof referralCode === "string" && referralCode.trim()) {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: referralCode.trim() },
+        select: { id: true },
+      });
+      if (referrer) referredById = referrer.id;
+    }
+
     const user = await prisma.user.create({
-      data: { username, passwordHash },
+      data: {
+        username,
+        passwordHash,
+        ...(referredById ? { referredById } : {}),
+      },
     });
+
+    // Grant the referrer 3 prank credits
+    if (referredById) {
+      await prisma.user.update({
+        where: { id: referredById },
+        data: { prankCredits: { increment: 3 } },
+      });
+    }
 
     return NextResponse.json(
       { id: user.id, username: user.username },
