@@ -158,6 +158,22 @@ body {
   width: 100% !important;
   height: 100% !important;
 }
+/* When the iframe itself is fullscreened directly */
+.game-frame iframe:fullscreen,
+.game-frame iframe:-webkit-full-screen {
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  border: none !important;
+}
+.game-frame div:fullscreen,
+.game-frame div:-webkit-full-screen {
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+}
 
 /* Fade in animation */
 @keyframes fadeIn {

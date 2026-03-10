@@ -246,16 +246,13 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
 
   // ── Fullscreen toggle ──────────────────────────────────────────
   const toggleFullscreen = useCallback(async () => {
-    const el = containerRef.current;
-    if (!el) return;
-
     if (fsMode !== "none") {
       // Currently fullscreen — exit
-      if (fsMode === "native" && document.fullscreenElement) {
+      if (document.fullscreenElement) {
         try {
           await document.exitFullscreen();
         } catch {
-          // fallthrough — event handler will clean up
+          // event handler or setState below will clean up
         }
       }
       setFsMode("none");
@@ -263,29 +260,66 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
       return;
     }
 
-    // Enter fullscreen
-    try {
-      await el.requestFullscreen();
-      setFsMode("native");
-      setIsFullscreen(true);
-    } catch {
-      // Native failed — use CSS fallback
-      setFsMode("fallback");
-      setIsFullscreen(true);
-    }
-  }, [fsMode]);
+    // Try fullscreening the iframe / ruffle element directly first
+    // This gives the game proper fullscreen dimensions from the browser
+    const gameEl = swf
+      ? ruffleContainerRef.current
+      : iframeRef.current;
+    const containerEl = containerRef.current;
 
+    // Attempt 1: fullscreen the game element directly
+    if (gameEl) {
+      try {
+        await gameEl.requestFullscreen();
+        setFsMode("native");
+        setIsFullscreen(true);
+        return;
+      } catch {
+        // Game element can't go fullscreen — try container
+      }
+    }
+
+    // Attempt 2: fullscreen the container div
+    if (containerEl) {
+      try {
+        await containerEl.requestFullscreen();
+        setFsMode("native");
+        setIsFullscreen(true);
+        return;
+      } catch {
+        // Native failed entirely
+      }
+    }
+
+    // Attempt 3: CSS fallback
+    setFsMode("fallback");
+    setIsFullscreen(true);
+  }, [fsMode, swf]);
+
+  // Sync when browser exits native fullscreen (Escape key, etc.)
   useEffect(() => {
     function onFsChange() {
-      if (!document.fullscreenElement) {
-        // Exited native fullscreen (Escape key, etc.)
+      if (!document.fullscreenElement && fsMode === "native") {
         setFsMode("none");
         setIsFullscreen(false);
       }
     }
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
-  }, []);
+  }, [fsMode]);
+
+  // Escape key exits CSS fallback fullscreen
+  useEffect(() => {
+    if (fsMode !== "fallback") return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setFsMode("none");
+        setIsFullscreen(false);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [fsMode]);
 
   // ── Volume / mute toggle ──────────────────────────────────────
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -426,7 +460,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
             title={title}
             allowFullScreen
             allow="autoplay; gamepad; fullscreen; pointer-lock"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-pointer-lock"
             loading="eager"
             onLoad={() => {
               setLoadError(null);
