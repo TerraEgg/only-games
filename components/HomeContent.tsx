@@ -5,7 +5,7 @@ import CategoryCard from "@/components/CategoryCard";
 import GameCard from "@/components/GameCard";
 import SearchBar from "@/components/SearchBar";
 import { useHideExternal } from "@/lib/useHideExternal";
-import { Gamepad2, TrendingUp, Sparkles, Loader2 } from "lucide-react";
+import { Gamepad2, TrendingUp, Sparkles, Loader2, Star } from "lucide-react";
 import { useMemo } from "react";
 import AdUnit from "@/components/AdUnit";
 
@@ -27,6 +27,12 @@ export default function HomeContent() {
       ? (data?.recentGames ?? []).filter((g) => g.source !== "EXTERNAL")
       : data?.recentGames ?? [],
     [data?.recentGames, hideExternal]
+  );
+  const featuredGames = useMemo(
+    () => hideExternal
+      ? (data?.featuredGames ?? []).filter((g) => g.source !== "EXTERNAL")
+      : data?.featuredGames ?? [],
+    [data?.featuredGames, hideExternal]
   );
 
   if (loading) {
@@ -83,6 +89,28 @@ export default function HomeContent() {
 
         {/* Ad between categories and popular */}
         <AdUnit variant="horizontal" className="rounded-2xl border border-zinc-800/40 bg-zinc-900/20 p-2" />
+
+        {/* Featured Games */}
+        {featuredGames.length > 0 && (
+          <section>
+            <div className="mb-6 flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-400" />
+              <h2 className="text-xl font-bold text-white">Featured</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {featuredGames.map((game) => (
+                <GameCard
+                  key={game.id}
+                  slug={game.slug}
+                  title={game.title}
+                  thumbnail={game.thumbnail}
+                  categoryName={game.categoryName}
+                  playCount={game.playCount}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Popular Games */}
         {popularGames.length > 0 && (

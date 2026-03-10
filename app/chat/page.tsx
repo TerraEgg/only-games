@@ -59,6 +59,7 @@ export default function ChatPage() {
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seenIdsRef = useRef(new Set<string>());
   const shouldScrollRef = useRef(true);
+  const optimisticIdRef = useRef(0);
 
   const isGuest = status === "unauthenticated";
   const isAuth = status === "authenticated";
@@ -117,7 +118,18 @@ export default function ChatPage() {
           const msg: ChatMsg = JSON.parse(event.data);
           if (seenIdsRef.current.has(msg.id)) return;
           seenIdsRef.current.add(msg.id);
-          setMessages((prev) => [...prev, msg]);
+          setMessages((prev) => {
+            // Replace optimistic message from same user with same content
+            const optIdx = prev.findIndex(
+              (m) => m.id.startsWith("optimistic-") && m.user.id === msg.user.id && m.content === msg.content
+            );
+            if (optIdx !== -1) {
+              const next = [...prev];
+              next[optIdx] = msg;
+              return next;
+            }
+            return [...prev, msg];
+          });
         } catch {}
       };
 
@@ -161,20 +173,37 @@ export default function ChatPage() {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || sending) return;
+    if (!input.trim() || sending || !session) return;
+    const content = input.trim();
+    setInput("");
     setSending(true);
+
+    // Optimistic message — appears instantly in gray
+    const optimisticId = `optimistic-${++optimisticIdRef.current}`;
+    const optimisticMsg: ChatMsg = {
+      id: optimisticId,
+      content,
+      createdAt: new Date().toISOString(),
+      roomId: activeRoom,
+      user: { id: session.user.id, username: (session.user as { username?: string }).username || "You", role: (session.user as { role?: string }).role || "USER" },
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
     try {
-      const body: { content: string; roomId?: string } = {
-        content: input.trim(),
-      };
+      const body: { content: string; roomId?: string } = { content };
       if (activeRoom) body.roomId = activeRoom;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (res.ok) setInput("");
-    } catch {} finally {
+      if (!res.ok) {
+        // Remove optimistic message on failure
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      }
+    } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+    } finally {
       setSending(false);
     }
   }
@@ -490,12 +519,13 @@ export default function ChatPage() {
               {messages.map((msg, i) => {
                 const isMe = msg.user.id === session.user.id;
                 const isAdmin = msg.user.role === "ADMIN";
+                const isOptimistic = msg.id.startsWith("optimistic-");
                 const showAvatar =
                   i === 0 || messages[i - 1].user.id !== msg.user.id;
                 return (
                   <div
                     key={msg.id}
-                    className={showAvatar ? "mt-3 first:mt-0" : ""}
+                    className={`${showAvatar ? "mt-3 first:mt-0" : ""} ${isOptimistic ? "opacity-50" : ""}`}
                   >
                     {showAvatar && (
                       <div className="mb-0.5 flex items-center gap-2">
@@ -521,7 +551,7 @@ export default function ChatPage() {
                         </span>
                       </div>
                     )}
-                    <p className="pl-0 text-sm leading-relaxed text-zinc-300 break-words">
+                    <p className={`pl-0 text-sm leading-relaxed break-words ${isOptimistic ? "text-zinc-500" : "text-zinc-300"}`}>
                       {msg.content}
                     </p>
                   </div>

@@ -46,7 +46,59 @@ body {
   height: 100%;
   border: none;
 }
-/* Fullscreen mode overrides */
+/* Shared fullscreen styles for the game frame */
+.game-fs-active {
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.game-fs-active .game-frame {
+  aspect-ratio: auto;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+  border: none;
+  overflow: hidden;
+}
+.game-fs-active .game-frame iframe,
+.game-fs-active .game-frame div {
+  width: 100% !important;
+  height: 100% !important;
+}
+/* Native fullscreen (browser API) — class applied via React state */
+.game-container--native-fs {
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.game-container--native-fs .game-frame {
+  aspect-ratio: auto;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+  border: none;
+  overflow: hidden;
+}
+.game-container--native-fs .game-frame iframe,
+.game-container--native-fs .game-frame div {
+  width: 100% !important;
+  height: 100% !important;
+}
+/* Also support :fullscreen pseudo-class as backup */
 .game-container:fullscreen,
 .game-container:-webkit-full-screen {
   width: 100vw;
@@ -60,17 +112,21 @@ body {
 }
 .game-container:fullscreen .game-frame,
 .game-container:-webkit-full-screen .game-frame {
-  aspect-ratio: 16/9;
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
+  aspect-ratio: auto;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100vw;
+  max-height: 100vh;
   border-radius: 0;
   border: none;
   overflow: hidden;
 }
 .game-container:fullscreen .game-frame iframe,
-.game-container:-webkit-full-screen .game-frame iframe {
-  width: 100%;
-  height: 100%;
+.game-container:fullscreen .game-frame div,
+.game-container:-webkit-full-screen .game-frame iframe,
+.game-container:-webkit-full-screen .game-frame div {
+  width: 100% !important;
+  height: 100% !important;
 }
 /* CSS-only fallback fullscreen (when native fails) */
 .game-container--fs-fallback {
@@ -88,16 +144,19 @@ body {
   border-radius: 0 !important;
 }
 .game-container--fs-fallback .game-frame {
-  aspect-ratio: 16/9;
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
+  aspect-ratio: auto;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100vw;
+  max-height: 100vh;
   border-radius: 0;
   border: none;
   overflow: hidden;
 }
-.game-container--fs-fallback .game-frame iframe {
-  width: 100%;
-  height: 100%;
+.game-container--fs-fallback .game-frame iframe,
+.game-container--fs-fallback .game-frame div {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Fade in animation */

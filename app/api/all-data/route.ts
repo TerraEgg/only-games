@@ -15,13 +15,19 @@ export async function GET(req: Request) {
   const gameWhere: any = { isActive: true, thumbnail: { not: null } };
   if (hideExternal) gameWhere.source = { not: "EXTERNAL" };
 
-  const [categories, popularGames, recentGames, totalGames] =
+  const [categories, featuredGames, popularGames, recentGames, totalGames] =
     await Promise.all([
       prisma.category.findMany({
         orderBy: { sortOrder: "asc" },
         include: {
           _count: { select: { games: { where: { isActive: true } } } },
         },
+      }),
+      prisma.game.findMany({
+        where: { ...gameWhere, isFeatured: true },
+        orderBy: { playCount: "desc" },
+        take: 8,
+        include: { category: { select: { name: true, slug: true } } },
       }),
       prisma.game.findMany({
         where: gameWhere,
@@ -68,6 +74,7 @@ export async function GET(req: Request) {
         description: c.description,
         gameCount: c._count.games,
       })),
+      featuredGames: featuredGames.map(mapGame),
       popularGames: popularGames.map(mapGame),
       recentGames: recentGames.map(mapGame),
       totalGames,

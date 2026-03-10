@@ -38,6 +38,7 @@ export interface CachedGame {
 
 export interface SiteData {
   categories: CachedCategory[];
+  featuredGames: CachedGame[];
   popularGames: CachedGame[];
   recentGames: CachedGame[];
   totalGames: number;

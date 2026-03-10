@@ -1,7 +1,16 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Maximize, Minimize, Volume2, VolumeX, Loader2, RefreshCcw, WifiOff } from "lucide-react";
+import {
+  Maximize,
+  Minimize,
+  Volume2,
+  VolumeX,
+  Loader2,
+  RefreshCcw,
+  WifiOff,
+  Download,
+} from "lucide-react";
 
 interface GameEmbedProps {
   url: string;
@@ -21,7 +30,11 @@ function isSWF(url: string): boolean {
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
   const mb = bytes / (1024 * 1024);
-  if (mb < 1024) return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`;
+  if (mb < 0.01) {
+    const kb = bytes / 1024;
+    return `${kb.toFixed(0)} KB`;
+  }
+  if (mb < 1024) return `${mb.toFixed(mb < 10 ? 2 : 1)} MB`;
   const gb = mb / 1024;
   return `${gb.toFixed(gb < 10 ? 1 : 0)} GB`;
 }
@@ -39,6 +52,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
   const ruffleContainerRef = useRef<HTMLDivElement>(null);
   const rufflePlayerRef = useRef<HTMLElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fsMode, setFsMode] = useState<"none" | "native" | "fallback">("none");
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [swf, setSwf] = useState(false);
@@ -48,6 +62,8 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
   const [totalBytes, setTotalBytes] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [loadElapsed, setLoadElapsed] = useState(0);
+  const loadStartRef = useRef(Date.now());
 
   // Detect SWF after mount to avoid hydration mismatch
   useEffect(() => {
@@ -60,10 +76,20 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     setLoadError(null);
     setDownloadedBytes(0);
     setTotalBytes(null);
+    setLoadElapsed(0);
+    loadStartRef.current = Date.now();
   }, [url, reloadToken, swf]);
 
+  // Elapsed timer while loading
+  useEffect(() => {
+    if (!loading) return;
+    const iv = setInterval(() => {
+      setLoadElapsed(Math.floor((Date.now() - loadStartRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [loading]);
+
   const retry = useCallback(() => {
-    // Force a full reload of iframe/ruffle
     setReloadToken((t) => t + 1);
   }, []);
 
@@ -79,6 +105,25 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     };
   }, [url, title]);
 
+  // ── Keep iframe alive — prevent browser from throttling/freezing ──
+  useEffect(() => {
+    if (swf) return;
+    if (loading) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    // Periodically poke the iframe to prevent the browser from suspending it
+    const iv = setInterval(() => {
+      try {
+        iframe.contentWindow?.postMessage("keep-alive", "*");
+      } catch {
+        // cross-origin — the postMessage attempt alone keeps the frame alive
+      }
+    }, 10_000);
+
+    return () => clearInterval(iv);
+  }, [swf, loading, reloadToken]);
+
   // ── Load Ruffle for SWF games ─────────────────────────────────
   useEffect(() => {
     if (!swf) return;
@@ -87,8 +132,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
 
     async function loadRuffle() {
       try {
-        // Best-effort download progress (same-origin proxy usually provides content-length)
-        // This is purely for UI; Ruffle still does its own load.
+        // Best-effort download progress
         try {
           const swfUrl = url.startsWith("/")
             ? url
@@ -131,7 +175,6 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
 
         if (cancelled) return;
 
-        // Get the Ruffle API
         const ruffle = (window as unknown as Record<string, unknown>)
           .RufflePlayer as {
           newest: () => {
@@ -142,7 +185,6 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
         };
 
         const player = ruffle.newest().createPlayer();
-        // Size the player to fill its container
         player.style.width = "100%";
         player.style.height = "100%";
 
@@ -152,13 +194,10 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
           rufflePlayerRef.current = player;
         }
 
-        // Route through proxy to avoid CORS issues with external SWF files
         const swfUrl = url.startsWith("/")
           ? url
           : `/api/swf-proxy?url=${encodeURIComponent(url)}`;
 
-        // webgpu can cause random freezes on some devices/browsers.
-        // Prefer WebGL for stability, but allow Ruffle to pick if needed.
         await player.load({
           url: swfUrl,
           autoplay: "on",
@@ -166,6 +205,8 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
           logLevel: "error",
           contextMenu: "rightClickOnly",
           preferredRenderer: "webgl",
+          maxExecutionDuration: 15,
+          playerRuntime: "flashPlayer",
         });
 
         if (!cancelled) setLoading(false);
@@ -181,7 +222,6 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
 
     return () => {
       cancelled = true;
-      // Clean up player
       if (ruffleContainerRef.current) {
         ruffleContainerRef.current.innerHTML = "";
       }
@@ -189,7 +229,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     };
   }, [swf, url, reloadToken]);
 
-  // If an iframe never fires onLoad (some providers hang), auto-timeout and offer retry
+  // If an iframe never fires onLoad, auto-timeout and offer retry
   useEffect(() => {
     if (swf) return;
     if (!loading) return;
@@ -209,22 +249,39 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     const el = containerRef.current;
     if (!el) return;
 
-    try {
-      if (!document.fullscreenElement) {
-        await el.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
+    if (fsMode !== "none") {
+      // Currently fullscreen — exit
+      if (fsMode === "native" && document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          // fallthrough — event handler will clean up
+        }
       }
-    } catch {
-      // Fallback: make it fill the viewport via CSS
-      setIsFullscreen((f) => !f);
+      setFsMode("none");
+      setIsFullscreen(false);
+      return;
     }
-  }, []);
 
-  // Track real fullscreen changes (esc key, etc.)
+    // Enter fullscreen
+    try {
+      await el.requestFullscreen();
+      setFsMode("native");
+      setIsFullscreen(true);
+    } catch {
+      // Native failed — use CSS fallback
+      setFsMode("fallback");
+      setIsFullscreen(true);
+    }
+  }, [fsMode]);
+
   useEffect(() => {
     function onFsChange() {
-      setIsFullscreen(!!document.fullscreenElement);
+      if (!document.fullscreenElement) {
+        // Exited native fullscreen (Escape key, etc.)
+        setFsMode("none");
+        setIsFullscreen(false);
+      }
     }
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
@@ -244,7 +301,6 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     });
   }, []);
 
-  // Initialize audio context on first user interaction (best-effort)
   useEffect(() => {
     try {
       const ctx = new (window.AudioContext ||
@@ -254,58 +310,98 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
       gain.connect(ctx.destination);
       audioCtxRef.current = ctx;
       gainNodeRef.current = gain;
-    } catch {
-      // Audio API not supported
-    }
+    } catch {}
     return () => {
       audioCtxRef.current?.close().catch(() => {});
     };
   }, []);
 
-  const showProgress = loading && (downloadedBytes > 0 || totalBytes);
-  const progressText = showProgress
-    ? `${formatBytes(downloadedBytes)}${
-        totalBytes ? ` / ${formatBytes(totalBytes)}` : ""
-      }`
-    : null;
+  const progressPct =
+    totalBytes && totalBytes > 0
+      ? Math.min(Math.round((downloadedBytes / totalBytes) * 100), 100)
+      : null;
+  const progressText =
+    downloadedBytes > 0 || totalBytes
+      ? `${formatBytes(downloadedBytes)}${
+          totalBytes ? ` / ${formatBytes(totalBytes)}` : ""
+        }`
+      : null;
 
   return (
     <div
       ref={containerRef}
       className={`game-container group relative ${
-        isFullscreen && !document.fullscreenElement
-          ? "game-container--fs-fallback"
-          : ""
+        fsMode === "native"
+          ? "game-container--native-fs"
+          : fsMode === "fallback"
+            ? "game-container--fs-fallback"
+            : ""
       }`}
     >
       {/* Loading / Error overlay */}
       {(loading || loadError) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/90 rounded-2xl border border-zinc-800/60">
-          <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
+          <div className="flex w-full max-w-xs flex-col items-center gap-4 px-6 text-center">
             {loadError ? (
               <>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900/60 border border-zinc-800/60">
-                  <WifiOff className="h-6 w-6 text-zinc-300" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20">
+                  <WifiOff className="h-6 w-6 text-red-400" />
                 </div>
-                <p className="text-sm font-medium text-white">Couldn’t load game</p>
-                <p className="text-xs text-zinc-400">{loadError}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <button
-                    onClick={retry}
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-500"
-                  >
-                    <RefreshCcw className="h-4 w-4" />
-                    Retry
-                  </button>
+                <div>
+                  <p className="text-sm font-semibold text-white">{"Couldn't load game"}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{loadError}</p>
                 </div>
+                <button
+                  onClick={retry}
+                  className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-500"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Retry
+                </button>
               </>
             ) : (
               <>
-                <Loader2 className="h-10 w-10 animate-spin text-accent-400" />
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm text-zinc-200">Loading game…</span>
+                <div className="relative flex h-16 w-16 items-center justify-center">
+                  {progressPct !== null ? (
+                    <svg className="h-16 w-16 -rotate-90" viewBox="0 0 64 64">
+                      <circle
+                        cx="32" cy="32" r="28" fill="none"
+                        stroke="currentColor" strokeWidth="3"
+                        className="text-zinc-800"
+                      />
+                      <circle
+                        cx="32" cy="32" r="28" fill="none"
+                        stroke="currentColor" strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 28}`}
+                        strokeDashoffset={`${2 * Math.PI * 28 * (1 - progressPct / 100)}`}
+                        className="text-accent-400 transition-all duration-300"
+                      />
+                    </svg>
+                  ) : (
+                    <Loader2 className="h-10 w-10 animate-spin text-accent-400" />
+                  )}
+                  {progressPct !== null && (
+                    <span className="absolute text-xs font-bold text-accent-400">
+                      {progressPct}%
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-sm font-medium text-zinc-200">
+                    Loading game&hellip;
+                  </span>
                   {progressText && (
-                    <span className="text-xs text-zinc-500">Downloading {progressText}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <Download className="h-3 w-3" />
+                      {progressText}
+                    </span>
+                  )}
+                  {loadElapsed >= 5 && !progressText && (
+                    <span className="text-[11px] text-zinc-600">
+                      Still loading&hellip; {loadElapsed}s
+                    </span>
                   )}
                 </div>
               </>
@@ -329,8 +425,8 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
             src={url}
             title={title}
             allowFullScreen
-            allow="autoplay; gamepad; fullscreen"
-            sandbox="allow-scripts allow-same-origin allow-forms"
+            allow="autoplay; gamepad; fullscreen; pointer-lock"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
             loading="eager"
             onLoad={() => {
               setLoadError(null);
@@ -347,7 +443,9 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
       {/* Floating controls — visible on hover */}
       <div
         className={`absolute bottom-3 right-3 z-20 flex items-center gap-2 transition-opacity duration-200 ${
-          loading || !!loadError ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+          loading || !!loadError
+            ? "opacity-0"
+            : "opacity-0 group-hover:opacity-100"
         }`}
       >
         <button
