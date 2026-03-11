@@ -5,8 +5,9 @@ import CategoryCard from "@/components/CategoryCard";
 import GameCard from "@/components/GameCard";
 import SearchBar from "@/components/SearchBar";
 import { useHideExternal } from "@/lib/useHideExternal";
-import { Gamepad2, TrendingUp, Sparkles, Loader2, Star } from "lucide-react";
+import { Gamepad2, TrendingUp, Sparkles, Loader2, Star, Layers } from "lucide-react";
 import { useMemo } from "react";
+import Link from "next/link";
 import AdUnit from "@/components/AdUnit";
 
 export default function HomeContent() {
@@ -74,6 +75,21 @@ export default function HomeContent() {
               Browse Categories
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {/* All Games — prominent card */}
+              <Link
+                href="/categories/all"
+                className="group relative flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 px-5 py-4 transition hover:border-accent-500/30 hover:bg-zinc-900"
+              >
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 text-accent-400 transition group-hover:bg-accent-500/20">
+                  <Layers className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-white">All Games</h3>
+                  <p className="text-xs text-zinc-500">
+                    {totalGames} {totalGames === 1 ? "game" : "games"}
+                  </p>
+                </div>
+              </Link>
               {categories.map((cat) => (
                 <CategoryCard
                   key={cat.id}

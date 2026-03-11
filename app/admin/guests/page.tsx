@@ -38,6 +38,9 @@ export default function AdminGuestsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null); // "action:guestId"
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({ total: 0, activeCount: 0, convertedCount: 0, pausedCount: 0 });
 
   // Modal state
   const [modal, setModal] = useState<{
@@ -51,13 +54,20 @@ export default function AdminGuestsPage() {
     fetchGuests();
     const interval = setInterval(fetchGuests, 15_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [page, search]); // Re-fetch on page/search change
 
   async function fetchGuests() {
     try {
-      const res = await fetch("/api/admin/guests");
-      const data = await res.json();
-      setGuests(Array.isArray(data) ? data : []);
+      const q = encodeURIComponent(search);
+      const res = await fetch(`/api/admin/guests?page=${page}&limit=10&search=${q}`);
+      const payload = await res.json();
+      if (payload.data) {
+        setGuests(payload.data);
+        setStats(payload.stats);
+        setTotalPages(payload.totalPages);
+      } else {
+        setGuests([]);
+      }
     } catch {} finally {
       setLoading(false);
     }
@@ -122,22 +132,10 @@ export default function AdminGuestsPage() {
     }
   }
 
-  const filtered = guests.filter((g) => {
-    const q = search.toLowerCase();
-    return (
-      g.fingerprint.toLowerCase().includes(q) ||
-      (g.ipAddress || "").includes(q) ||
-      (g.country || "").toLowerCase().includes(q) ||
-      (g.city || "").toLowerCase().includes(q) ||
-      (g.convertedUsername || "").toLowerCase().includes(q)
-    );
-  });
-
-  const activeGuests = guests.filter(
-    (g) => !g.convertedUserId && new Date(g.lastSeen).getTime() > Date.now() - 60 * 1000
-  );
-  const convertedGuests = guests.filter((g) => !!g.convertedUserId);
-  const pausedGuests = guests.filter((g) => g.isPaused);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setPage(1); // Reset page on search
+  };
 
   return (
     <div className="animate-fadeIn">
@@ -149,7 +147,7 @@ export default function AdminGuestsPage() {
             type="text"
             placeholder="Search guests..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             className="rounded-xl border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-4 text-sm text-white outline-none focus:border-accent-500/50"
           />
         </div>
@@ -157,42 +155,42 @@ export default function AdminGuestsPage() {
 
       {/* Stats */}
       <div className="mb-6 grid gap-4 sm:grid-cols-4">
-        <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-            <Eye className="h-5 w-5" />
+          <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+              <Eye className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{stats.activeCount}</p>
+              <p className="text-xs text-zinc-500">Active Now</p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-white">{activeGuests.length}</p>
-            <p className="text-xs text-zinc-500">Active Now</p>
+          <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <UserCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{stats.convertedCount}</p>
+              <p className="text-xs text-zinc-500">Signed Up</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-            <UserCheck className="h-5 w-5" />
+          <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+              <Pause className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{stats.pausedCount}</p>
+              <p className="text-xs text-zinc-500">Paused</p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-white">{convertedGuests.length}</p>
-            <p className="text-xs text-zinc-500">Signed Up</p>
+          <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-700/30 text-zinc-400">
+              <Eye className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
+              <p className="text-xs text-zinc-500">Total Visitors</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-            <Pause className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-white">{pausedGuests.length}</p>
-            <p className="text-xs text-zinc-500">Paused</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-700/30 text-zinc-400">
-            <Eye className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-white">{guests.length}</p>
-            <p className="text-xs text-zinc-500">Total Visitors</p>
-          </div>
-        </div>
       </div>
 
       {loading ? (
@@ -215,7 +213,7 @@ export default function AdminGuestsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/40">
-              {filtered.map((g) => {
+              {guests.map((g) => {
                 const isActive = !g.convertedUserId && new Date(g.lastSeen).getTime() > Date.now() - 5 * 60 * 1000;
                 const isOnline = new Date(g.lastSeen).getTime() > Date.now() - 60 * 1000;
                 return (
@@ -344,7 +342,7 @@ export default function AdminGuestsPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {guests.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-zinc-600">
                     No guest sessions found
@@ -353,6 +351,56 @@ export default function AdminGuestsPage() {
               )}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-zinc-800/60 bg-zinc-900/30 px-4 py-3 sm:px-6">
+              <div className="flex flex-1 justify-between sm:hidden">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="relative inline-flex items-center rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="relative ml-3 inline-flex items-center rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-zinc-400">
+                    Showing <span className="font-medium">{(page - 1) * 10 + 1}</span> to <span className="font-medium">{Math.min(page * 10, stats.total)}</span> of <span className="font-medium">{stats.total}</span> guests
+                  </p>
+                </div>
+                <div>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="relative inline-flex items-center rounded-l-md px-2 py-2 text-zinc-400 ring-1 ring-inset ring-zinc-700 hover:bg-zinc-800 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Previous</span>
+                      &larr;
+                    </button>
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-zinc-300 ring-1 ring-inset ring-zinc-700">
+                      Page {page} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="relative inline-flex items-center rounded-r-md px-2 py-2 text-zinc-400 ring-1 ring-inset ring-zinc-700 hover:bg-zinc-800 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Next</span>
+                      &rarr;
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

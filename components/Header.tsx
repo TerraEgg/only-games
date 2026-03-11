@@ -66,6 +66,13 @@ export default function Header() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-2 md:flex">
+          <Link
+            href={session?.user ? "/chat" : "/chat"}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition hover:text-white"
+            title="Global Chat"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Link>
           {session ? (
             <>
               {session.user.role === "ADMIN" && (
@@ -77,12 +84,6 @@ export default function Header() {
                   Admin
                 </Link>
               )}
-              <Link
-                href="/chat"
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition hover:text-white"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </Link>
               <Link
                 href="/invite"
                 className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition hover:text-white"
@@ -150,6 +151,14 @@ export default function Header() {
             </div>
           </form>
           <div className="flex flex-col gap-1">
+            <Link
+              href={session?.user ? "/chat" : "/register"}
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Chat
+            </Link>
             {session ? (
               <>
                 <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300">
@@ -166,14 +175,6 @@ export default function Header() {
                     Admin Dashboard
                   </Link>
                 )}
-                <Link
-                  href="/chat"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Chat
-                </Link>
                 <Link
                   href="/invite"
                   onClick={() => setMobileOpen(false)}

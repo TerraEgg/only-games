@@ -65,6 +65,11 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
   const [loadElapsed, setLoadElapsed] = useState(0);
   const loadStartRef = useRef(Date.now());
 
+  // Loop detection for iframe games
+  const iframeLoadCountRef = useRef(0);
+  const iframeLoadTimestampsRef = useRef<number[]>([]);
+  const loopDetectedRef = useRef(false);
+
   // Detect SWF after mount to avoid hydration mismatch
   useEffect(() => {
     setSwf(isSWF(url));
@@ -78,6 +83,9 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     setTotalBytes(null);
     setLoadElapsed(0);
     loadStartRef.current = Date.now();
+    iframeLoadCountRef.current = 0;
+    iframeLoadTimestampsRef.current = [];
+    loopDetectedRef.current = false;
   }, [url, reloadToken, swf]);
 
   // Elapsed timer while loading
@@ -129,17 +137,19 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
     if (!swf) return;
 
     let cancelled = false;
+    // Track if we already fetched to prevent duplicate downloads
+    const abortController = new AbortController();
 
     async function loadRuffle() {
       try {
-        // Best-effort download progress
+        // Best-effort download progress — only fetch once
         try {
           const swfUrl = url.startsWith("/")
             ? url
             : `/api/swf-proxy?url=${encodeURIComponent(url)}`;
 
           const res = await fetch(swfUrl, {
-            signal: AbortSignal.timeout(30_000),
+            signal: abortController.signal,
             cache: "force-cache",
           });
 
@@ -151,16 +161,20 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
             let received = 0;
             while (true) {
               const { done, value } = await reader.read();
-              if (done) break;
+              if (done || cancelled) break;
               if (value) {
                 received += value.byteLength;
                 if (!cancelled) setDownloadedBytes(received);
               }
             }
           }
-        } catch {
-          // Ignore progress errors; Ruffle load still might succeed
+        } catch (e: unknown) {
+          // If it was an abort, stop entirely
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          // Ignore other progress errors; Ruffle load still might succeed
         }
+
+        if (cancelled) return;
 
         // Dynamically load Ruffle if not already loaded
         if (!(window as unknown as Record<string, unknown>).RufflePlayer) {
@@ -222,12 +236,82 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
 
     return () => {
       cancelled = true;
+      abortController.abort();
       if (ruffleContainerRef.current) {
         ruffleContainerRef.current.innerHTML = "";
       }
       rufflePlayerRef.current = null;
     };
   }, [swf, url, reloadToken]);
+
+  // ── iframe onLoad handler with loop detection ─────────────────
+  const handleIframeLoad = useCallback(() => {
+    const now = Date.now();
+    iframeLoadCountRef.current += 1;
+    iframeLoadTimestampsRef.current.push(now);
+
+    // Keep only the last 10 timestamps
+    if (iframeLoadTimestampsRef.current.length > 10) {
+      iframeLoadTimestampsRef.current = iframeLoadTimestampsRef.current.slice(-10);
+    }
+
+    const timestamps = iframeLoadTimestampsRef.current;
+    const loadCount = iframeLoadCountRef.current;
+
+    // Loop detection: if we've had 4+ loads within 15 seconds, it's looping
+    if (loadCount >= 4 && timestamps.length >= 4) {
+      const oldest = timestamps[timestamps.length - 4];
+      const elapsed = now - oldest;
+      if (elapsed < 15_000) {
+        // Detected a loop — stop the iframe from reloading
+        loopDetectedRef.current = true;
+        setLoadError(
+          "This game appears to be stuck in a loading loop. Try clicking Retry — if it persists, the game host may be having issues."
+        );
+        setLoading(false);
+
+        // Stop the iframe from further loading
+        try {
+          const iframe = iframeRef.current;
+          if (iframe) {
+            iframe.contentWindow?.stop();
+          }
+        } catch {
+          // cross-origin
+        }
+        return;
+      }
+    }
+
+    // Normal load success — first load only
+    if (loadCount === 1 || !loopDetectedRef.current) {
+      setLoadError(null);
+      setLoading(false);
+
+      // Restore save data cross-domain to terraegg.github.io
+      try {
+        if (url && url.includes("terraegg.github.io")) {
+          const iframe = iframeRef.current;
+          if (iframe && iframe.contentWindow) {
+            const saves: Record<string, string> = {};
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && !k.startsWith("og_") && !k.startsWith("next")) {
+                const v = localStorage.getItem(k);
+                if (v !== null) saves[k] = v;
+              }
+            }
+            iframe.contentWindow.postMessage(
+              { type: "RESTORE_SAVE_DATA", payload: JSON.stringify(saves) },
+              "https://terraegg.github.io"
+            );
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore saves to remote iframe", e);
+      }
+    }
+  }, [url]);
 
   // If an iframe never fires onLoad, auto-timeout and offer retry
   useEffect(() => {
@@ -462,10 +546,7 @@ export default function GameEmbed({ url, title }: GameEmbedProps) {
             allow="autoplay; gamepad; fullscreen; pointer-lock"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-pointer-lock"
             loading="eager"
-            onLoad={() => {
-              setLoadError(null);
-              setLoading(false);
-            }}
+            onLoad={handleIframeLoad}
             onError={() => {
               setLoadError("The game host blocked loading in an iframe.");
               setLoading(false);

@@ -217,7 +217,7 @@ export default function CookieSync() {
     })();
   }, [isLoggedIn]);
 
-  /* ─── 2) Every 5 s — local backup + diff upload ───────────── */
+  /* ─── 2) Every 2 s — local backup + diff upload ───────────── */
   useEffect(() => {
     if (!isLoggedIn) {
       if (backupTimerRef.current) clearInterval(backupTimerRef.current);
@@ -229,7 +229,7 @@ export default function CookieSync() {
     backupTimerRef.current = setInterval(() => {
       saveLocalBackup();
       diffAndUpload();
-    }, 5_000);
+    }, 2_000);
 
     return () => { if (backupTimerRef.current) clearInterval(backupTimerRef.current); };
   }, [isLoggedIn]);
@@ -337,6 +337,44 @@ export default function CookieSync() {
 
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
+  }, [isLoggedIn]);
+
+  /* ─── 12) Cross-domain iframe saves via postMessage ────────── */
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    function onMessage(e: MessageEvent) {
+      if (e.origin !== "https://terraegg.github.io") return;
+
+      if (e.data && e.data.type === "SYNC_SAVE_DATA") {
+        try {
+          const saves = JSON.parse(e.data.payload);
+          const domain = e.origin;
+          const itemsToUpload = [];
+
+          for (const [key, value] of Object.entries(saves)) {
+            if (isExcluded(key)) continue;
+            // Prevent redundant uploading if identical
+            if (snapshotRef.current.get(key) === value) continue;
+            
+            itemsToUpload.push({ key, value: String(value), domain });
+            snapshotRef.current.set(key, String(value));
+            
+            // Optionally set locally so other components see it
+            localStorage.setItem(key, String(value)); 
+          }
+
+          if (itemsToUpload.length > 0) {
+            uploadItems(itemsToUpload, true);
+          }
+        } catch (err) {
+          console.error("Failed to parse cross-domain saves", err);
+        }
+      }
+    }
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, [isLoggedIn]);
 
   return null;

@@ -4,6 +4,34 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 
+// In-memory cache for public (non-admin) game queries
+interface CacheEntry {
+  data: string;
+  timestamp: number;
+}
+const queryCache = new Map<string, CacheEntry>();
+const QUERY_CACHE_TTL = 10_000; // 10 seconds
+const MAX_CACHE_ENTRIES = 50;
+
+function getCachedResponse(key: string): string | null {
+  const entry = queryCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > QUERY_CACHE_TTL) {
+    queryCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedResponse(key: string, data: string) {
+  // Evict oldest entries if cache is too large
+  if (queryCache.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = queryCache.keys().next().value;
+    if (firstKey) queryCache.delete(firstKey);
+  }
+  queryCache.set(key, { data, timestamp: Date.now() });
+}
+
 // GET — paginated game listing (admin + public)
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -18,6 +46,18 @@ export async function GET(req: Request) {
   const sort = searchParams.get("sort") || "recent";
   const sortBy = searchParams.get("sortBy") || "";
   const sortDir = searchParams.get("sortDir") === "asc" ? "asc" : "desc";
+  const hideExternal = searchParams.get("hideExternal") === "1";
+
+  // Check in-memory cache for public requests
+  if (!isAdmin) {
+    const cacheKey = `games-${page}-${limit}-${search}-${source}-${category}-${sort}-${sortBy}-${sortDir}-${hideExternal}`;
+    const cached = getCachedResponse(cacheKey);
+    if (cached) {
+      return new Response(cached, {
+        headers: { "Content-Type": "application/json", "X-Cache": "HIT" },
+      });
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = isAdmin ? {} : { isActive: true };
@@ -31,7 +71,7 @@ export async function GET(req: Request) {
   if (category) {
     where.category = { slug: category };
   }
-  if (searchParams.get("hideExternal") === "1") {
+  if (hideExternal) {
     where.source = { not: "EXTERNAL" };
   }
   if (!isAdmin) {
@@ -95,7 +135,18 @@ export async function GET(req: Request) {
     };
   }
 
-  return NextResponse.json(result);
+  const responseBody = JSON.stringify(result);
+
+  // Cache public responses
+  if (!isAdmin) {
+    const hideExt = searchParams.get("hideExternal") === "1";
+    const cacheKey = `games-${page}-${limit}-${search}-${source}-${category}-${sort}-${sortBy}-${sortDir}-${hideExt}`;
+    setCachedResponse(cacheKey, responseBody);
+  }
+
+  return new Response(responseBody, {
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 // POST — create game (admin only)

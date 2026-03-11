@@ -3,13 +3,36 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Returns categories + top popular/recent games for the homepage.
- * Lightweight — only fetches what's needed for instant page loads.
+ * Now with in-memory caching (15s TTL) to make subsequent requests near-instant.
  */
 export const dynamic = "force-dynamic";
+
+// In-memory cache for ultra-fast responses
+interface CacheEntry {
+  data: string;
+  timestamp: number;
+  key: string;
+}
+let memoryCache: CacheEntry | null = null;
+const CACHE_TTL = 15_000; // 15 seconds
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const hideExternal = searchParams.get("hideExternal") === "1";
+
+  // Cache key from params
+  const cacheKey = `all-data-${hideExternal}`;
+
+  // Return cached data if fresh
+  if (memoryCache && memoryCache.key === cacheKey && Date.now() - memoryCache.timestamp < CACHE_TTL) {
+    return new Response(memoryCache.data, {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
+        "X-Cache": "HIT",
+      },
+    });
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const gameWhere: any = { isActive: true, thumbnail: { not: null } };
@@ -61,30 +84,34 @@ export async function GET(req: Request) {
   });
 
   const fingerprint = `${categories.length}-${totalGames}-${
-    popularGames[0]?.id ?? ""
-  }-${popularGames[0]?.playCount ?? 0}`;
+    recentGames[0]?.id ?? ""
+  }`;
 
-  return NextResponse.json(
-    {
-      categories: categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        icon: c.icon,
-        description: c.description,
-        gameCount: c._count.games,
-      })),
-      featuredGames: featuredGames.map(mapGame),
-      popularGames: popularGames.map(mapGame),
-      recentGames: recentGames.map(mapGame),
-      totalGames,
-      fingerprint,
-      updatedAt: new Date().toISOString(),
+  const responseBody = JSON.stringify({
+    categories: categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      icon: c.icon,
+      description: c.description,
+      gameCount: c._count.games,
+    })),
+    featuredGames: featuredGames.map(mapGame),
+    popularGames: popularGames.map(mapGame),
+    recentGames: recentGames.map(mapGame),
+    totalGames,
+    fingerprint,
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Update memory cache
+  memoryCache = { data: responseBody, timestamp: Date.now(), key: cacheKey };
+
+  return new Response(responseBody, {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
+      "X-Cache": "MISS",
     },
-    {
-      headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
-      },
-    }
-  );
+  });
 }
